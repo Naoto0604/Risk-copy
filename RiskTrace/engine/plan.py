@@ -23,7 +23,7 @@ from database import db
 from collectors.baas import endpoints as baas
 from collectors.dns import records
 from collectors.explore import assets, crawl, discover, repo, subdomains
-from collectors.http import cookies, cors, headers
+from collectors.http import cookies, cors, headers, redirects
 from collectors.ports import scan as ports
 from collectors.tls import probe as tls
 from engine.correlation import load_correlations_from_dir, run as run_correlations
@@ -88,7 +88,7 @@ DEFAULT_STEPS: tuple[Step, ...] = (
     Step("http_headers", lambda url, scheduler, context: headers.collect(url, scheduler)),
     Step("http_cookies", lambda url, scheduler, context: cookies.collect(url, scheduler)),
     Step("tls", lambda url, scheduler, context: tls.collect(url, scheduler)),
-    Step("http_cors", lambda url, scheduler, context: cors.collect(url, scheduler)),
+    Step("http_redirects", lambda url, scheduler, context: redirects.collect(url, scheduler)),
     Step("dns", _dns_step),
     Step("explore_repo", lambda url, scheduler, context: repo.collect(url, scheduler)),
     Step("explore_discover", lambda url, scheduler, context: discover.collect(url, scheduler)),
