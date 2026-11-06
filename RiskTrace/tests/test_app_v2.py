@@ -1,22 +1,23 @@
 import re
-import threading
 import tempfile
+import threading
 import time
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
+import app_v2
 from analyzer.scoring_v2 import score
+from app_v2 import _RUNNING
 from database import db as db_module
 from database import report_store
-import app_v2
-from app_v2 import _RUNNING
 from database.models import get_scan, init_db
 from evidence import store
 from report import model as report_model
 from verification import consent, ownership
 from verification.gate import GateError
+from web import ratelimit
 
 TARGET = "https://example.test/"
 
@@ -58,14 +59,21 @@ class AppTestCase(unittest.TestCase):
         report_store.init_reports()
         consent.init_consents()
         ownership.init_proofs()
+        ratelimit.reset()
 
         from app_v2 import app  # noqa: F811 - テスト用に取り直す
 
         app.config["TESTING"] = True
         self.client = app.test_client()
 
-    def tearDown(self): 
-        # 実行中のスレッドが DB を触り終えるまで待つ。
+    def csrf(self):
+        """セッションに固定トークンを入れ、送信用の値を返す。"""
+        with self.client.session_transaction() as sess:
+            sess["csrf_token"] = "test-token"
+        return "test-token"
+
+    def tearDown(self):
+        # 実行中のスレッドが DB を掴み終えるまで待つ。
         deadline = time.time() + 5
         while time.time() < deadline:
             if not _RUNNING:
@@ -86,6 +94,7 @@ class AppTestCase(unittest.TestCase):
             except PermissionError:
                 time.sleep(0.05)
 
+
 class TestForm(AppTestCase):
 
     def test_form_is_served(self):
@@ -99,7 +108,8 @@ class TestForm(AppTestCase):
         self.assertIn(b'name="collectors"', response.data)
 
     def test_blank_target_is_rejected(self):
-        response = self.client.post("/v2/scan", data={"target": "  "})
+        response = self.client.post("/v2/scan",
+                                    data={"target": "  ", "csrf_token": self.csrf()})
         self.assertEqual(response.status_code, 400)
 
 
@@ -120,6 +130,7 @@ class TestScan(AppTestCase):
         return get_scan(scan_id)
 
     def post(self, **data):
+        data.setdefault("csrf_token", self.csrf())
         return self.client.post("/v2/scan", data=data)
 
     def test_post_returns_the_scanning_page(self):
@@ -161,7 +172,8 @@ class TestReport(AppTestCase):
 
     def completed(self):
         response = self.client.post("/v2/scan", data={"target": TARGET,
-                                                      "collectors": ["http_headers"]})
+                                                      "collectors": ["http_headers"],
+                                                      "csrf_token": self.csrf()})
         scan_id = scan_id_of(response)
         for _ in range(100):
             if get_scan(scan_id)["status"] == "COMPLETED":
@@ -191,7 +203,6 @@ class TestReport(AppTestCase):
 
     def test_export_of_unknown_scan_is_404(self):
         self.assertEqual(self.client.get("/v2/report/nope/csv").status_code, 404)
-
 
 
 class TestRunningGuard(AppTestCase):
@@ -269,10 +280,68 @@ class TestDuplicatePost(AppTestCase):
         super().tearDown()
 
     def test_second_post_with_the_same_id_is_409(self):
+        token = self.csrf()
         with mock.patch("app_v2.uuid.uuid4", return_value="fixed-id"):
-            first = self.client.post("/v2/scan", data={"target": TARGET})
-            second = self.client.post("/v2/scan", data={"target": TARGET})
+            first = self.client.post("/v2/scan", data={"target": TARGET, "csrf_token": token})
+            second = self.client.post("/v2/scan", data={"target": TARGET, "csrf_token": token})
         self.assertEqual(first.status_code, 200)
         self.assertEqual(second.status_code, 409)
+
+
+class TestCsrf(AppTestCase):
+
+    def setUp(self):
+        super().setUp()
+        patcher = mock.patch("app_v2.service.run_scan", side_effect=fake_run_scan)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_form_carries_the_token(self):
+        self.assertIn(b'name="csrf_token"', self.client.get("/v2/").data)
+
+    def test_post_without_token_is_rejected(self):
+        response = self.client.post("/v2/scan", data={"target": TARGET})
+        self.assertEqual(response.status_code, 400)
+
+    def test_post_with_wrong_token_is_rejected(self):
+        self.csrf()
+        response = self.client.post("/v2/scan",
+                                    data={"target": TARGET, "csrf_token": "nope"})
+        self.assertEqual(response.status_code, 400)
+
+    def test_header_token_is_accepted(self):
+        token = self.csrf()
+        response = self.client.post("/v2/scan", data={"target": TARGET},
+                                    headers={"X-CSRF-Token": token})
+        self.assertEqual(response.status_code, 200)
+
+
+class TestRateLimit(AppTestCase):
+
+    def setUp(self):
+        super().setUp()
+        patcher = mock.patch("app_v2.service.run_scan", side_effect=fake_run_scan)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_sixth_post_for_the_same_host_is_429(self):
+        token = self.csrf()
+        codes = [
+            self.client.post("/v2/scan",
+                             data={"target": TARGET, "csrf_token": token}).status_code
+            for _ in range(6)
+        ]
+        self.assertEqual(codes[:5], [200] * 5)
+        self.assertEqual(codes[5], 429)
+
+    def test_other_host_is_not_limited(self):
+        token = self.csrf()
+        for _ in range(5):
+            self.client.post("/v2/scan", data={"target": TARGET, "csrf_token": token})
+        response = self.client.post("/v2/scan",
+                                    data={"target": "https://other.test/", "csrf_token": token})
+        self.assertEqual(response.status_code, 200)
+
+
 if __name__ == "__main__":
     unittest.main()

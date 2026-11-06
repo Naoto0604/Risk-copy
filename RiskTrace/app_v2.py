@@ -10,11 +10,14 @@
     - 結果は ReportModel をテンプレートに渡すだけ。判定はしない
     - ゲート拒否は理由を並べて返す。500 にしない
     - Jinja2 の autoescape を維持し、|safe を使わない
+    - POST は CSRF トークンを必須にし、ホスト単位で回数を制限する
 """
 
 from __future__ import annotations
 
+import os
 import re
+import secrets
 import threading
 import uuid
 from urllib.parse import urlsplit
@@ -31,8 +34,10 @@ from verification import consent as consent_module
 from verification import ownership
 from verification.gate import GateError
 from verification.scope import ScopeError
+from web import csrf, ratelimit
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("RISKTRACE_SECRET") or secrets.token_hex(32)
 
 #: 同意画面で選べる Collector。
 COLLECTORS: tuple[str, ...] = tuple(step.name for step in service.plan.DEFAULT_STEPS)
@@ -64,6 +69,29 @@ def _running(scan_id: str) -> bool:
     with _LOCK:
         thread = _RUNNING.get(scan_id)
         return thread is not None and thread.is_alive()
+
+
+def _host_of(target: str) -> str:
+    """レート制限の鍵。URL でもホスト名でも受ける。"""
+    if "://" in target:
+        return urlsplit(target).hostname or target
+    return target.split("/", 1)[0] or target
+
+
+@app.before_request
+def _check_csrf():
+    """POST は CSRF トークンを必須にする。"""
+    if request.method != "POST":
+        return None
+    if not csrf.check(csrf.submitted(request.form, request.headers)):
+        return render_template("scan_form_v2.html", collectors=COLLECTORS,
+                               error="フォームの有効期限が切れました。送信し直してください"), 400
+    return None
+
+
+@app.context_processor
+def _inject_csrf():
+    return {"csrf_token": csrf.token()}
 
 
 def _bootstrap() -> None:
@@ -105,6 +133,10 @@ def scan():
     if not target:
         return render_template("scan_form_v2.html", collectors=COLLECTORS,
                                error="対象 URL を入力してください"), 400
+
+    if not ratelimit.hit(_host_of(target)):
+        return render_template("scan_form_v2.html", collectors=COLLECTORS,
+                               error="同じホストの実行が続いています。1分ほど待ってください"), 429
 
     scan_id = str(uuid.uuid4())
     protocol = "https" if target.startswith("https://") else "http"
