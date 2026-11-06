@@ -45,6 +45,7 @@ RiskTrace/
 ├─ report_export.py          v1
 ├─ engine/legacy_ports.py    v1 向けポート検査ブリッジ
 ├─ engine/legacy_crawl.py    v1 向けクロールブリッジ
+├─ engine/legacy_checks.py   v1 向けヘッダー・Cookie・リダイレクト検査
 ├─ database/
 │  ├─ db.py models.py queue.py report_store.py
 ├─ templates/                v2 は *_v2.html
