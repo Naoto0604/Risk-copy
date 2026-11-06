@@ -1,0 +1,30 @@
+- id: correlation.baas-wildcard-cors
+  title: 公開 BaaS エンドポイントにワイルドカード CORS が付いています
+  severity: MEDIUM
+  confidence: low
+  requires:
+    - proof
+    - consent
+  collectors:
+    - baas_endpoints
+    - http_cors
+  when:
+    all:
+      - obs:
+          collector: baas_endpoints
+          path: counts
+          key: reachable
+          op: gt
+          value: 0
+      - obs:
+          collector: http_cors
+          path: wildcard
+          op: eq
+          value: true
+  message: 本文から BaaS の参照先を特定し、到達できることを確認しました。同時に CORS が全オリジン許可です。
+  why: フロントエンドに埋め込まれた BaaS の参照先は、そのまま公開 API 面になります。CORS が全許可だと任意のサイトのスクリプトから読めます。認証と RLS 次第でデータが読めます。
+  fix: 参照先の BaaS プロジェクトで、テーブルごとの RLS と許可オリジンを確認します。
+  verify: 許可していないオリジンから fetch して、期待どおり拒否されることを確認します。
+  tags:
+    - baas
+    - cors

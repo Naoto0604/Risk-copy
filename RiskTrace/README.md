@@ -119,7 +119,8 @@ python -m unittest discover -s tests -v
 
 - `_RUNNING` による二重起動抑止は参照のみで未実装
 - `app_v2` に CSRF・認証・レート制限が無い
-- 相関ルールの YAML が 0 本（エンジンはある）
+- 相関ルールは `rules/correlations/` に置く。`collectors` に2つ以上を列挙し、`when` はその中だけを参照する
+- 相関の Finding は `rule_id` に `corr:` が付き、単独ルールと出所が分かれる
 - 前回比の比較元の選び方が未決定
 - レポートの保持期間が未決定
 - バナーからの CVE 照合は未移植（旧実装は requests 直呼びのため Scheduler 経由化が必要）

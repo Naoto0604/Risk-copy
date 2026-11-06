@@ -1,0 +1,29 @@
+- id: correlation.admin-without-auth-challenge
+  title: 管理パスに到達でき、認証チャレンジもありません
+  severity: LOW
+  confidence: low
+  requires:
+    - proof
+    - consent
+  collectors:
+    - explore_discover
+    - http_headers
+  when:
+    all:
+      - obs:
+          collector: explore_discover
+          path: found_paths
+          op: contains
+          value: /admin
+      - obs:
+          collector: http_headers
+          path: headers
+          key: www-authenticate
+          op: absent
+  message: /admin が 200 で返り、取得した応答に WWW-Authenticate も付いていません。
+  why: 管理画面が認証なしで開くか、認証がアプリ側フォームのみの可能性があります。ヘッダは /admin ではなく取得元ページのものなので断定はできません。
+  fix: 管理画面の認証方式と公開範囲を確認します。
+  verify: 未ログイン状態で /admin を開き、認証を求められるか確認します。
+  tags:
+    - exposure
+    - auth

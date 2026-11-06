@@ -125,15 +125,21 @@ def _walk(value: Any, parts: Sequence[str]) -> Any:
             return MISSING
         return _walk(value[head], rest)
     if isinstance(value, (list, tuple)):
-        # 配列は全要素を同じ残りパスで辿り、値のリストを返す。
-        # ``cookies.attributes.secure`` のように配列の中を参照するため。
+        # 配列は全要素を同じ残りパスで辿り、他のリストを返す。
+        # 入れ子の配列は平坦化する。``pages.assets.integrity`` のように
+        # 配列の中の配列を参照したとき、``contains`` が効くようにするため。
         collected = []
         for item in value:
             found = _walk(item, parts)
-            if found is not MISSING:
+            if found is MISSING:
+                continue
+            if isinstance(found, (list, tuple)):
+                collected.extend(found)
+            else:
                 collected.append(found)
         return collected if collected else MISSING
     return MISSING
+
 
 def lookup(observations: Iterable[Observation], ref: str) -> Iterator[tuple[Observation, Any]]:
     """``ref``（ドット区切り）を各 Observation の data から引く。"""

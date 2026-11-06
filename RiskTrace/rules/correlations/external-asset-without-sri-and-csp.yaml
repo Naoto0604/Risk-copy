@@ -1,0 +1,35 @@
+- id: correlation.external-asset-without-sri-and-csp
+  title: 外部アセットに SRI が無く、CSP もありません
+  severity: MEDIUM
+  confidence: medium
+  requires:
+    - proof
+    - consent
+  collectors:
+    - explore_assets
+    - http_headers
+  when:
+    all:
+      - not:
+          obs:
+            collector: explore_assets
+            path: external_hosts
+            op: empty
+      - obs:
+          collector: explore_assets
+          path: pages
+          key: assets.integrity
+          op: contains
+          value: false
+      - obs:
+          collector: http_headers
+          path: headers
+          key: content-security-policy
+          op: absent
+  message: 外部オリジンのアセットを参照しており、integrity の無い script/link があり、CSP も付いていません。
+  why: 外部ホストが侵害されるとその script はそのまま実行されます。SRI も CSP も無いと差し替えを検知できず、止める層もありません。
+  fix: 外部の script/link に integrity と crossorigin を付けます。難しければ CSP で許可元を絞ります。
+  verify: 応答ヘッダに CSP が付き、外部 script に integrity が付いていることを確認します。
+  tags:
+    - supply-chain
+    - browser
