@@ -4,7 +4,7 @@ import uuid
 import json
 import requests
 import threading
-from scanner.crawler import crawl, normalize_url
+from engine.legacy_crawl import crawl_urls as crawl,normalize_url
 from scanner.checks import run_checks
 from analyzer.scoring import calculate_risk_score, get_risk_level
 from analyzer.correlation import correlate_findings

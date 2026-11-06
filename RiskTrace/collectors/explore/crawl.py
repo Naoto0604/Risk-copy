@@ -20,7 +20,7 @@ import re
 from collections import deque
 from dataclasses import dataclass
 from html.parser import HTMLParser
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import quote, urljoin, urlsplit
 
 from collectors.http import client
 from engine.observations import Observation
@@ -55,7 +55,11 @@ _SKIP_PREFIXES = ("mailto:", "tel:", "javascript:", "data:", "#")
 
 
 def normalize_url(url: str) -> str | None:
-    """URL を比較用の形に正規化する。http/https 以外は None。"""
+    """URL を比較用の形に正規化する。http/https 以外は None。
+
+    パスとクエリはパーセントエンコードで揃える。非 ASCII と、
+    すでにエスケープ済みの表記が同じ識別子になるようにするため。
+    """
     try:
         parts = urlsplit((url or "").strip())
         port = parts.port
@@ -76,13 +80,16 @@ def normalize_url(url: str) -> str | None:
     if port is not None:
         netloc += f":{port}"
 
-    path = parts.path or "/"
+    path = quote(parts.path or "/", safe="/%:@!$&'()*+,;=-._~%")
     if not path.startswith("/"):
         path = "/" + path
+    query = quote(parts.query, safe="/%?:@!$&'()*+,;=-._~%")
+    query = f"?{query}" if query else ""
 
-    query = f"?{parts.query}" if parts.query else ""
+    path = re.sub(r"%[0-9a-fA-F]{2}", lambda m: m.group(0).upper(), path)
+    query = re.sub(r"%[0-9a-fA-F]{2}", lambda m: m.group(0).upper(), query)
+
     return f"{scheme}://{netloc}{path}{query}"
-
 
 def origin_of(url: str) -> tuple[str, str, int] | None:
     """同一オリジン判定用のキー。"""

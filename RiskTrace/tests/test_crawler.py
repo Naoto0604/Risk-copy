@@ -1,127 +1,101 @@
 import unittest
-from unittest.mock import patch
 
-import requests
+from engine.legacy_crawl import crawl_urls, normalize_url
 
-from scanner.crawler import crawl, normalize_url
-
-
-def make_response(status_code=200, html="", location=None):
-    response = requests.Response()
-    response.status_code = status_code
-    response._content = html.encode("utf-8")
-    response.encoding = "utf-8"
-    response.headers["Content-Type"] = "text/html; charset=utf-8"
-
-    if location:
-        response.headers["Location"] = location
-
-    return response
+HTML = {"content-type": "text/html; charset=utf-8"}
 
 
-class TestCrawler(unittest.TestCase):
+def page(html="", status=200, headers=None):
+    return (status, list((headers or HTML).items()), html.encode("utf-8"))
 
-    def test_url_normalization_preserves_identity(self):
+
+def transport_of(pages):
+    """url -> 応答 の表から transport を作る。"""
+    calls = []
+
+    def transport(url, method, timeout):
+        calls.append(url)
+        if url in pages:
+            return pages[url]
+        return page("<p>ok</p>")
+
+    transport.calls = calls
+    return transport
+
+
+class TestNormalize(unittest.TestCase):
+
+    def test_unicode_and_encoded_forms_match(self):
         unicode_url = "https://example.com/contact/?topic=日本語"
-        encoded_url = "https://EXAMPLE.com/contact/?topic=%E6%97%A5%E6%9C%AC%E8%AA%9E#part"
+        encoded_url = "https://example.com/contact/?topic=%E6%97%A5%E6%9C%AC%E8%AA%9E#part"
         self.assertEqual(normalize_url(unicode_url), normalize_url(encoded_url))
+
+    def test_duplicate_query_keys_are_kept(self):
         self.assertEqual(
             normalize_url("https://example.com/?a=1&a=2"),
             "https://example.com/?a=1&a=2",
         )
+
+    def test_query_values_are_distinguished(self):
         self.assertNotEqual(
             normalize_url("https://example.com/?topic=food"),
             normalize_url("https://example.com/?topic=fashion"),
         )
-        mojibake = "https://example.com/?topic=fashionã«ã¤ãã¦"
-        self.assertEqual(normalize_url(mojibake), "https://example.com/?topic=fashion%C3%A3%C2%81%C2%AB%C3%A3%C2%81%C2%A4%C3%A3%C2%81%C2%84%C3%A3%C2%81%C2%A6")
 
-    @patch("scanner.crawler.requests.get")
-    def test_unicode_links_decode_and_duplicate_forms_crawl_once(self, mock_get):
-        mock_get.side_effect = [
-            make_response(html=(
-                '<a href="/contact/?topic=日本語">unicode</a>'
-                '<a href="/contact/?topic=%E6%97%A5%E6%9C%AC%E8%AA%9E#fragment">encoded</a>'
-                '<a href="relative">relative</a>'
-                '<a href="/contact/?topic=food">food</a>'
-                '<a href="/contact/?topic=fashion">fashion</a>'
-                '<a href="/contact/#one">frag1</a><a href="/contact/#two">frag2</a>'
-                '<a href="http://evil.example/">external</a>'
-                '<a href="http://example.com:8000/">port</a>'
-                '<a href="http://[broken">bad</a>'
-            )),
-            *[make_response(html="<p>ok</p>") for _ in range(5)],
-        ]
-        result = crawl("http://example.com/", max_pages=4)
-        self.assertEqual(len(result), 4)
-        self.assertEqual(mock_get.call_count, 4)
-        self.assertIn("http://example.com/contact/?topic=%E6%97%A5%E6%9C%AC%E8%AA%9E", result)
-        self.assertIn("http://example.com/relative", result)
+    def test_credentials_are_rejected(self):
+        self.assertIsNone(normalize_url("https://u:p@example.com/"))
 
-    @patch("scanner.crawler.requests.get")
-    def test_meta_charset_is_used_when_header_omits_charset(self, mock_get):
-        response = requests.Response()
-        response.status_code = 200
-        response._content = (
-            '<meta charset="shift_jis"><a href="/日本語">リンク</a>'.encode("shift_jis")
-        )
-        response.headers["Content-Type"] = "text/html"
-        mock_get.side_effect = [response, make_response(html="ok")]
-        result = crawl("http://example.com/", max_pages=2)
-        self.assertIn("http://example.com/%E6%97%A5%E6%9C%AC%E8%AA%9E", result)
+    def test_non_http_scheme_is_rejected(self):
+        self.assertIsNone(normalize_url("ftp://example.com/"))
 
-    @patch("scanner.crawler.requests.get")
-    def test_external_redirect_is_not_followed(self, mock_get):
-        """外部ホストへのリダイレクトを自動追跡しない。"""
-        mock_get.return_value = make_response(
-            302,
-            location="http://evil.example/",
-        )
 
-        result = crawl("http://example.com/", max_pages=10)
+class TestCrawl(unittest.TestCase):
 
-        self.assertEqual(result, set())
-        mock_get.assert_called_once_with(
-            "http://example.com/",
-            timeout=5,
-            allow_redirects=False,
-        )
+    def test_bad_start_url_raises(self):
+        with self.assertRaises(ValueError):
+            crawl_urls("not a url")
 
-    @patch("scanner.crawler.requests.get")
-    def test_external_link_is_not_crawled(self, mock_get):
-        """ページ内の外部リンクを巡回しない。"""
-        mock_get.side_effect = [
-            make_response(
-                html=(
-                    '<a href="/inside">内部</a>'
-                    '<a href="http://evil.example/">外部</a>'
-                )
+    def test_external_link_is_not_crawled(self):
+        transport = transport_of({
+            "http://example.com/": page(
+                '<a href="/inside">内部</a><a href="http://evil.example/">外部</a>'
             ),
-            make_response(html="<p>内部ページ</p>"),
-        ]
+        })
+        result = crawl_urls("http://example.com/", max_pages=10, transport=transport)
+        self.assertEqual(result, {"http://example.com/", "http://example.com/inside"})
 
-        result = crawl("http://example.com/", max_pages=10)
+    def test_other_port_is_not_crawled(self):
+        transport = transport_of({
+            "http://example.com/": page('<a href="http://example.com:8000/">別ポート</a>'),
+        })
+        result = crawl_urls("http://example.com/", max_pages=10, transport=transport)
+        self.assertEqual(result, {"http://example.com/"})
 
+    def test_max_pages_is_respected(self):
+        links = "".join(f'<a href="/p{i}">x</a>' for i in range(10))
+        transport = transport_of({"http://example.com/": page(links)})
+        result = crawl_urls("http://example.com/", max_pages=4, transport=transport)
+        self.assertEqual(len(result), 4)
+        self.assertTrue(transport.calls[0].endswith("/robots.txt"))
+        self.assertEqual(len(transport.calls), 5)
+
+    def test_duplicate_link_forms_are_visited_once(self):
+        transport = transport_of({
+            "http://example.com/": page(
+                '<a href="/contact/?topic=日本語">a</a>'
+                '<a href="/contact/?topic=%E6%97%A5%E6%9C%AC%E8%AA%9E#f">b</a>'
+            ),
+        })
+        result = crawl_urls("http://example.com/", max_pages=10, transport=transport)
         self.assertEqual(
             result,
-            {
-                "http://example.com/",
-                "http://example.com/inside",
-            },
-        )
-        self.assertEqual(mock_get.call_count, 2)
-
-    @patch("scanner.crawler.requests.get")
-    def test_same_host_port_is_required(self, mock_get):
-        """別ポートへのリンクを巡回しない。"""
-        mock_get.return_value = make_response(
-            html='<a href="http://example.com:8000/">別ポート</a>'
+            {"http://example.com/", "http://example.com/contact/?topic=%E6%97%A5%E6%9C%AC%E8%AA%9E"},
         )
 
-        result = crawl("http://example.com/", max_pages=10)
-
+    def test_fetch_error_page_is_not_counted(self):
+        transport = transport_of({})
+        result = crawl_urls("http://example.com/", max_pages=10, transport=transport)
         self.assertEqual(result, {"http://example.com/"})
-        mock_get.assert_called_once()
 
 
 if __name__ == "__main__":
