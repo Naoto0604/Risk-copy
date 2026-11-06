@@ -6,7 +6,7 @@ SEVERITY_SCORE = {
     "INFO": 0
 }
 
-from scanner.crawler import normalize_url
+from engine.legacy_crawl import normalize_url
 
 def calculate_risk_score(findings):
     if not findings:

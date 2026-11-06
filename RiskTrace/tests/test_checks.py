@@ -1,6 +1,6 @@
 import unittest
 from types import SimpleNamespace
-from scanner.checks import check_security_headers, check_cookies
+from engine.legacy_checks import check_security_headers, check_cookies
 
 
 class TestSecurityHeaders(unittest.TestCase):
