@@ -360,6 +360,12 @@ class TestBootstrap(AppTestCase):
             app_v2._bootstrap()
         purge.assert_called_once()
 
+    def test_bootstrap_creates_the_job_table(self):
+        with mock.patch("app_v2.queue_module.init_queue") as init:
+            app_v2._bootstrap()
+        init.assert_called_once()
+
+
 class TestLogin(AppTestCase):
 
     def test_form_requires_login(self):

@@ -25,6 +25,8 @@ from urllib.parse import urlsplit
 from flask import Flask, Response, abort, jsonify, render_template, request,redirect,url_for
 
 from database import report_store
+from database import queue as queue_module
+from database import report_store
 from database.models import create_scan, get_scan, init_db, update_scan_status
 from engine import service
 from engine.rules import RuleLoadError
@@ -111,6 +113,7 @@ def _bootstrap() -> None:
     consent_module.init_consents()
     ownership.init_proofs()
     report_store.purge_expired()
+    queue_module.init_queue()
 
 def _run(scan_id: str, target: str, consent_id: str | None, selected: tuple[str, ...]) -> None:
     """バックグラウンドで実行する。失敗は scans.status に残す。"""
