@@ -1,7 +1,7 @@
 import unittest
 from types import SimpleNamespace
 from engine.legacy_checks import check_security_headers, check_cookies
-
+from engine.legacy_checks import check_https
 
 class TestSecurityHeaders(unittest.TestCase):
 
@@ -276,6 +276,22 @@ class TestCookieSecurityPrecision(unittest.TestCase):
         self.assertIn("Expires/Max-Age=present", evidence)
         self.assertNotIn("private.example", evidence)
         self.assertNotIn("/account", evidence)
+
+class TestHttpsByRules(unittest.TestCase):
+
+    def test_http_is_high(self):
+        finding = check_https("http://example.test/")
+        self.assertEqual(finding["subtype"], "HTTPS_MISSING")
+        self.assertEqual(finding["severity"], "HIGH")
+
+    def test_https_is_info(self):
+        finding = check_https("https://example.test/")
+        self.assertEqual(finding["subtype"], "HTTPS_PRESENT")
+        self.assertEqual(finding["severity"], "INFO")
+
+    def test_unknown_scheme_does_not_raise(self):
+        finding = check_https("example.test/")
+        self.assertEqual(finding["subtype"], "HTTPS_UNKNOWN")
 
 
 if __name__ == "__main__":

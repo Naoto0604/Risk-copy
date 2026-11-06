@@ -1,0 +1,21 @@
+- id: transport.https-present
+  title: HTTPSが使用されています
+  severity: INFO
+  confidence: high
+  requires:
+    - proof
+    - consent
+  collectors:
+    - http_transport
+  when:
+    obs:
+      collector: http_transport
+      path: scheme
+      op: eq
+      value: https
+  message: 通信にHTTPSが使用されています。
+  why: 通信が暗号化されており、経路上の傍受への耐性があります。
+  fix: 現状を維持します。
+  verify: 証明書の有効期限と更新手順を確認します。
+  tags:
+    - transport

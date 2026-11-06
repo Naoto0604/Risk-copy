@@ -9,26 +9,26 @@ from urllib.parse import urlparse, urljoin
 
 
 def check_https(url):
-    """URLがHTTPSを使用しているか確認する。"""
-    parsed_url = urlparse(url)
+    """URL が HTTPS かを確認する。判定は rules 側。"""
+    scheme = urlparse(url).scheme.lower()
+    observation = Observation.ok("http_transport", url, {"scheme": scheme})
 
-    if parsed_url.scheme.lower() == "https":
+    findings = _run_rules(_TRANSPORT_RULES, observation, _TRANSPORT_SUBTYPES)
+    if not findings:
         return {
             "type": "HTTPS",
+            "subtype": "HTTPS_UNKNOWN",
             "severity": "INFO",
-            "title": "HTTPSが使用されています",
+            "title": "HTTPS の使用を判定できませんでした",
             "url": url,
-            "description": "通信にHTTPSが使用されています。",
+            "description": f"URL のスキームが {scheme or '不明'} です。",
         }
 
-    return {
-        "type": "HTTPS",
-        "severity": "HIGH",
-        "title": "HTTPSが使用されていません",
-        "url": url,
-        "description": "HTTP通信では通信内容が暗号化されません。",
-    }
-
+    finding = findings[0]
+    finding["description"] = _TRANSPORT_DESCRIPTIONS.get(
+        finding["subtype"], finding["description"]
+    )
+    return finding
 
 def check_security_headers(response):
     """主要なセキュリティヘッダーの設定状況を確認する。判定は rules 側。"""
@@ -71,6 +71,20 @@ _HEADER_SUBTYPES = {
     "headers.x-content-type-options-missing": ("SECURITY_HEADER", "X-Content-Type-Options", "X-Content-Type-Optionsが設定されていません"),
     "headers.x-frame-options-missing": ("SECURITY_HEADER", "X-Frame-Options", "X-Frame-Optionsが設定されていません"),
 }
+
+_TRANSPORT_RULES = _RULES / "transport"
+
+_TRANSPORT_SUBTYPES = {
+    "transport.https-missing": ("HTTPS", "HTTPS_MISSING", "HTTPSが使用されていません"),
+    "transport.https-present": ("HTTPS", "HTTPS_PRESENT", "HTTPSが使用されています"),
+}
+_TRANSPORT_DESCRIPTIONS = {
+    "HTTPS_MISSING": "HTTP通信では通信内容が暗号化されません。",
+    "HTTPS_PRESENT": "通信にHTTPSが使用されています。",
+}
+
+
+
 _COOKIE_SUBTYPES = {
     "cookies.httponly-missing": ("COOKIE", "COOKIE_HTTPONLY_MISSING", "HttpOnly属性が設定されていません"),
     "cookies.over-http": ("COOKIE", "COOKIE_SECURE_MISSING", "Secure属性が設定されていません"),

@@ -1,0 +1,21 @@
+- id: transport.https-missing
+  title: HTTPSが使用されていません
+  severity: HIGH
+  confidence: high
+  requires:
+    - proof
+    - consent
+  collectors:
+    - http_transport
+  when:
+    obs:
+      collector: http_transport
+      path: scheme
+      op: eq
+      value: http
+  message: HTTP通信では通信内容が暗号化されません。
+  why: 平文の HTTP では、経路上で内容の傍受や改変ができます。
+  fix: HTTPS で配信し、HTTP からは常時 HTTPS へリダイレクトします。
+  verify: 対象 URL の scheme が https であることを確認します。
+  tags:
+    - transport
