@@ -6,7 +6,7 @@ import requests
 import threading
 from engine.legacy_crawl import crawl_urls as crawl,normalize_url
 from engine.legacy_checks import run_checks
-from analyzer.scoring import calculate_risk_score, get_risk_level
+from engine.legacy_scoring import calculate_risk_score, get_risk_level
 from analyzer.correlation import correlate_findings
 from analyzer.attack_path import generate_attack_paths
 from analyzer.priority import aggregate_priorities, calculate_priority

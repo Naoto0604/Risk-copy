@@ -1,6 +1,6 @@
 import unittest
 
-from analyzer.scoring import (
+from engine.legacy_scoring import (
     SEVERITY_SCORE,
     calculate_risk_score,
     get_risk_level,
