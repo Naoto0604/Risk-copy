@@ -342,6 +342,13 @@ class TestRateLimit(AppTestCase):
                                     data={"target": "https://other.test/", "csrf_token": token})
         self.assertEqual(response.status_code, 200)
 
+class TestBootstrap(AppTestCase):
+
+    def test_bootstrap_purges_expired_reports(self):
+        with mock.patch("app_v2.report_store.purge_expired") as purge:
+            app_v2._bootstrap()
+        purge.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()

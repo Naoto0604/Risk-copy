@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlsplit
 from typing import Any
 
@@ -27,7 +27,8 @@ from report.model import ReportModel
 
 class ReportStoreError(Exception):
     """保存・取得に失敗した。"""
-
+    #: レポートの保存期間（日）。Evidence 側の既定に合わせる。
+DEFAULT_RETENTION_DAYS = 90
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -211,9 +212,6 @@ def previous_for(target: str, *, exclude_scan_id: str) -> dict | None:
         "compared_on": "host",
     }
 
-
-
-
 def findings_for(scan_id: str) -> list[dict]:
     """保存済み Finding を返す。エクスポート用。"""
     conn = db.get_connection()
@@ -240,3 +238,37 @@ def findings_for(scan_id: str) -> list[dict]:
         }
         for row in rows
     ]
+
+
+def purge_expired(
+    *,
+    now: datetime | None = None,
+    retention_days: int = DEFAULT_RETENTION_DAYS,
+) -> int:
+    """保存期間を過ぎたレポートを消す。消した件数を返す。
+
+    Finding も同じ scan_id で消す。scans の行は実行履歴として残す。
+    """
+    if retention_days < 1:
+        raise ReportStoreError("retention_days は 1 以上である必要があります")
+
+    moment = now or datetime.now(timezone.utc)
+    cutoff = (moment - timedelta(days=retention_days)).isoformat(timespec="seconds")
+
+    conn = db.get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT scan_id FROM reports_v2 WHERE created_at < ?", (cutoff,)
+        ).fetchall()
+        scan_ids = [row["scan_id"] for row in rows]
+        for scan_id in scan_ids:
+            conn.execute("DELETE FROM findings_v2 WHERE scan_id = ?", (scan_id,))
+        conn.execute("DELETE FROM reports_v2 WHERE created_at < ?", (cutoff,))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+    return len(scan_ids)

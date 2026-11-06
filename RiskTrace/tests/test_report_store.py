@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 
 from analyzer.scoring_v2 import score
@@ -187,6 +188,48 @@ class TestHostMigration(StoreTestCase):
         finally:
             conn.close()
         self.assertEqual(row["host"], "example.test")
+
+class TestPurge(StoreTestCase):
+
+    def age(self, scan_id, created_at):
+        conn = db_module.get_connection()
+        try:
+            conn.execute(
+                "UPDATE reports_v2 SET created_at = ? WHERE scan_id = ?",
+                (created_at, scan_id),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def test_old_report_is_removed(self):
+        self.save()
+        self.age("scan-1", "2020-01-01T00:00:00+00:00")
+        self.assertEqual(report_store.purge_expired(), 1)
+        self.assertIsNone(report_store.load_report("scan-1"))
+
+    def test_new_report_is_kept(self):
+        self.save()
+        self.assertEqual(report_store.purge_expired(), 0)
+        self.assertIsNotNone(report_store.load_report("scan-1"))
+
+    def test_findings_are_removed_too(self):
+        self.save(findings=[finding()])
+        self.age("scan-1", "2020-01-01T00:00:00+00:00")
+        report_store.purge_expired()
+        self.assertEqual(report_store.findings_for("scan-1"), [])
+
+    def test_retention_can_be_shortened(self):
+        self.save()
+        self.age("scan-1", "2026-01-01T00:00:00+00:00")
+        now = datetime(2026, 2, 1, tzinfo=timezone.utc)
+        self.assertEqual(report_store.purge_expired(now=now, retention_days=7), 1)
+
+    def test_invalid_retention_is_rejected(self):
+        with self.assertRaises(report_store.ReportStoreError):
+            report_store.purge_expired(retention_days=0)
+
+
 
 if __name__ == "__main__":
     unittest.main()

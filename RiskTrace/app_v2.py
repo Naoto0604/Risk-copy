@@ -100,7 +100,7 @@ def _bootstrap() -> None:
     report_store.init_reports()
     consent_module.init_consents()
     ownership.init_proofs()
-
+    report_store.purge_expired()
 
 def _run(scan_id: str, target: str, consent_id: str | None, selected: tuple[str, ...]) -> None:
     """バックグラウンドで実行する。失敗は scans.status に残す。"""
