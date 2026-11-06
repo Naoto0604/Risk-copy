@@ -59,19 +59,18 @@ pip install -r requirements.txt
 ## 起動
 
 ```powershell
+$env:RISKTRACE_PASSWORD = "任意のパスワード"
+$env:RISKTRACE_SECRET = "任意の長い文字列"
 python app_v2.py
-セッション署名鍵は環境変数 `RISKTRACE_SECRET` から読む。未設定なら起動ごとに生成するため、再起動でセッションが切れる。
-```
 
 `/v2/` を開く。
 
-## 使い方
-
-1. `/v2/` で対象 URL と検査項目を選ぶ
-2. 所有証明・同意が未登録なら先に通す
-3. 実行するとキューに積まれ、Worker が処理する
-4. `/v2/status/<scan_id>` で進行を見る
-5. 完了後 `/v2/report/<scan_id>` でレポート、`/json` `/csv` でエクスポート
+1. `/v2/login` でパスワードを入れる
+2. `/v2/` で対象 URL と検査項目を選ぶ
+3. 所有証明・同意が未登録なら先に通す
+4. 実行するとキューに積まれ、Worker が処理する
+5. `/v2/status/<scan_id>` で進行を見る
+6. 完了後 `/v2/report/<scan_id>` でレポート、`/json` `/csv` でエクスポート
 
 ## パイプライン
 
@@ -119,14 +118,16 @@ python -m unittest discover -s tests -v
 
 ## 既知の未対応
 
-- セッション署名鍵は環境変数 `RISKTRACE_SECRET` から読む。未設定なら起動ごとに生成するため、再起動でセッションが切れる。
 - 相関ルールは `rules/correlations/` に置く。`collectors` に2つ以上を列挙し、`when` はその中だけを参照する
 - 相関の Finding は `rule_id` に `corr:` が付き、単独ルールと出所が分かれる
-- 前回比の比較元の選び方が未決定
 - 保存期間を過ぎたレポートは起動時に消える。Finding も同時に消え、`scans` の行だけ履歴として残る
 - バナーからの CVE 照合は未移植（旧実装は requests 直呼びのため Scheduler 経由化が必要）
 - `legacy_checks` は HTTPS 判定と旧形式への変換だけを行う（ヘッダー・Cookie・リダイレクトの判定は rules 側）
-  
+- 認証は単一パスワードのみ。利用者ごとの権限分離、パスワード変更、ログイン試行の制限は無い
+- CSRF は全 POST にトークンを要求する。レート制限はホスト単位5回/60秒で、プロセス内の記憶のみ
+- 公開する場合は HTTPS 終端と `RISKTRACE_SECRET` の固定が前提
+
+
 ## 併存と移行
 
 v1 は壊さず残し、v2 は別モジュール・別テーブル（`findings_v2` / `reports_v2`）で動かす。旧コードは判定と通信を含むものだけ移し替え、含まないものはそのまま使う。旧モジュールを新側から呼ぶときは `client.fetch` か Scheduler 経由にし、`requests` 直呼びを残さない。

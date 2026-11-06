@@ -17,6 +17,8 @@ from evidence import store
 from report import model as report_model
 from verification import consent, ownership
 from verification.gate import GateError
+from web import auth
+from web import csrf
 from web import ratelimit
 
 TARGET = "https://example.test/"
@@ -65,12 +67,21 @@ class AppTestCase(unittest.TestCase):
 
         app.config["TESTING"] = True
         self.client = app.test_client()
+        auth.reset("test-password")
+        with self.client.session_transaction() as sess:
+            sess["authenticated"] = True
 
     def csrf(self):
         """セッションに固定トークンを入れ、送信用の値を返す。"""
         with self.client.session_transaction() as sess:
             sess["csrf_token"] = "test-token"
         return "test-token"
+
+    def logout(self):                       # ★ 追加
+        """ログアウト状態にする（セッションを空にする）。"""
+        with self.client.session_transaction() as sess:
+            sess.clear()
+
 
     def tearDown(self):
         # 実行中のスレッドが DB を掴み終えるまで待つ。
@@ -348,6 +359,40 @@ class TestBootstrap(AppTestCase):
         with mock.patch("app_v2.report_store.purge_expired") as purge:
             app_v2._bootstrap()
         purge.assert_called_once()
+
+class TestLogin(AppTestCase):
+
+    def test_form_requires_login(self):
+        self.logout()
+        response = self.client.get("/v2/")
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/v2/login", response.headers["Location"])
+
+    def test_login_page_is_served(self):
+        self.logout()
+        response = self.client.get("/v2/login")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'name="password"', response.data)
+
+    def test_wrong_password_is_rejected(self):
+        self.logout()
+        response = self.client.post("/v2/login",
+                                    data={"password": "nope", "csrf_token": self.csrf()})
+        self.assertEqual(response.status_code, 401)
+
+    def test_correct_password_opens_the_form(self):
+        self.logout()
+        token = self.csrf()
+        response = self.client.post("/v2/login",
+                                    data={"password": "test-password", "csrf_token": token})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.client.get("/v2/").status_code, 200)
+
+    def test_logout_closes_the_session(self):
+        response = self.client.post("/v2/logout", data={"csrf_token": self.csrf()})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.client.get("/v2/").status_code, 302)
+
 
 
 if __name__ == "__main__":

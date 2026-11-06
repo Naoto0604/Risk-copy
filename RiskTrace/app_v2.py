@@ -22,7 +22,7 @@ import threading
 import uuid
 from urllib.parse import urlsplit
 
-from flask import Flask, Response, abort, jsonify, render_template, request
+from flask import Flask, Response, abort, jsonify, render_template, request,redirect,url_for
 
 from database import report_store
 from database.models import create_scan, get_scan, init_db, update_scan_status
@@ -34,7 +34,8 @@ from verification import consent as consent_module
 from verification import ownership
 from verification.gate import GateError
 from verification.scope import ScopeError
-from web import csrf, ratelimit
+from web import auth, csrf, ratelimit
+
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("RISKTRACE_SECRET") or secrets.token_hex(32)
@@ -77,6 +78,15 @@ def _host_of(target: str) -> str:
         return urlsplit(target).hostname or target
     return target.split("/", 1)[0] or target
 
+@app.before_request
+def _require_login():
+    """`/v2/login` 以外はログイン必須にする。"""
+    if request.endpoint in ("login", "static"):
+        return None
+    if auth.is_authenticated():
+        return None
+    return redirect(url_for("login", next=request.path))
+
 
 @app.before_request
 def _check_csrf():
@@ -117,6 +127,24 @@ def _run(scan_id: str, target: str, consent_id: str | None, selected: tuple[str,
         update_scan_status(scan_id, "COMPLETED")
     finally:
         _release(scan_id)
+
+@app.route("/v2/login", methods=["GET", "POST"])
+def login():
+    if request.method == "GET":
+        return render_template("login_v2.html")
+
+    if not auth.check(request.form.get("password")):
+        return render_template("login_v2.html", error="パスワードが違います"), 401
+
+    auth.remember()
+    return redirect(request.args.get("next") or url_for("index"))
+
+
+@app.route("/v2/logout", methods=["POST"])
+def logout():
+    auth.forget()
+    return redirect(url_for("login"))
+
 
 
 @app.route("/v2/", methods=["GET"])
