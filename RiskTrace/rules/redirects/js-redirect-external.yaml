@@ -1,0 +1,22 @@
+- id: redirects.js-redirect-external
+  title: 外部ドメインへのJavaScriptリダイレクトが検出されました
+  severity: LOW
+  confidence: medium
+  requires:
+    - proof
+    - consent
+  collectors:
+    - http_redirects
+  when:
+    obs:
+      collector: http_redirects
+      path: js_redirect
+      key: external
+      op: eq
+      value: true
+  message: JavaScriptによって外部ドメインへの自動遷移が確認されました。
+  why: スクリプト由来の遷移は静的な確認が難しく、意図の把握が必要です。
+  fix: 遷移先とスクリプトの内容を確認します。
+  verify: 該当スクリプトの遷移先を確認します。
+  tags:
+    - redirect

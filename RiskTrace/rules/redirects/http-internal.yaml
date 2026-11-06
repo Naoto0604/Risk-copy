@@ -1,0 +1,27 @@
+- id: redirects.http-internal
+  title: HTTPリダイレクトが検出されました
+  severity: INFO
+  confidence: medium
+  requires:
+    - proof
+    - consent
+  collectors:
+    - http_redirects
+  when:
+    all:
+      - obs:
+          collector: http_redirects
+          path: chain_length
+          op: gt
+          value: 0
+      - obs:
+          collector: http_redirects
+          path: external
+          op: eq
+          value: false
+  message: HTTPリダイレクトが確認されました。
+  why: 遷移経路の把握は診断の前提になります。
+  fix: リダイレクト先と経路を確認します。
+  verify: 意図した遷移だけが残っていることを確認します。
+  tags:
+    - redirect

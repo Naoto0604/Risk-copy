@@ -1,0 +1,22 @@
+- id: redirects.js-redirect-internal
+  title: JavaScriptリダイレクトが検出されました
+  severity: INFO
+  confidence: medium
+  requires:
+    - proof
+    - consent
+  collectors:
+    - http_redirects
+  when:
+    obs:
+      collector: http_redirects
+      path: js_redirect
+      key: external
+      op: eq
+      value: false
+  message: JavaScriptによる自動遷移が確認されました。
+  why: スクリプト由来の遷移は、無効化環境では動きません。
+  fix: 遷移先とスクリプトの内容を確認します。
+  verify: 遷移先が意図どおりか確認します。
+  tags:
+    - redirect

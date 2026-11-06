@@ -1,0 +1,22 @@
+- id: redirects.meta-refresh-internal
+  title: Meta Refreshが検出されました
+  severity: INFO
+  confidence: medium
+  requires:
+    - proof
+    - consent
+  collectors:
+    - http_redirects
+  when:
+    obs:
+      collector: http_redirects
+      path: meta_refresh
+      key: external
+      op: eq
+      value: false
+  message: HTMLのMeta Refreshによる自動遷移が確認されました。
+  why: 自動遷移は利用者の操作を挟まないため、遷移先の把握が必要です。
+  fix: 遷移先と設定内容を確認します。
+  verify: meta タグの設定が意図どおりか確認します。
+  tags:
+    - redirect

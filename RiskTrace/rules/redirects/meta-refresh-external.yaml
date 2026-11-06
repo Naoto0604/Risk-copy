@@ -1,0 +1,22 @@
+- id: redirects.meta-refresh-external
+  title: 外部ドメインへのMeta Refreshが検出されました
+  severity: LOW
+  confidence: medium
+  requires:
+    - proof
+    - consent
+  collectors:
+    - http_redirects
+  when:
+    obs:
+      collector: http_redirects
+      path: meta_refresh
+      key: external
+      op: eq
+      value: true
+  message: HTMLのMeta Refreshによって外部ドメインへの遷移が確認されました。
+  why: Meta Refresh はサーバー側の制御を経ずに遷移するため、意図の確認が必要です。
+  fix: 遷移先が意図したホストか確認します。
+  verify: meta タグの content の url を確認します。
+  tags:
+    - redirect

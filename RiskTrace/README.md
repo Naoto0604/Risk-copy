@@ -125,8 +125,8 @@ python -m unittest discover -s tests -v
 - 前回比の比較元の選び方が未決定
 - 保存期間を過ぎたレポートは起動時に消える。Finding も同時に消え、`scans` の行だけ履歴として残る
 - バナーからの CVE 照合は未移植（旧実装は requests 直呼びのため Scheduler 経由化が必要）
-- 旧 `legacy_checks` の判定は rules へ未移行（`legacy_ports` / `legacy_crawl` は v2 へ委譲済み）
-- 
+- `legacy_checks` は判定を `rules/headers`・`rules/cookies` に委ね、旧形式への変換だけを行う
+  
 ## 併存と移行
 
 v1 は壊さず残し、v2 は別モジュール・別テーブル（`findings_v2` / `reports_v2`）で動かす。旧コードは判定と通信を含むものだけ移し替え、含まないものはそのまま使う。旧モジュールを新側から呼ぶときは `client.fetch` か Scheduler 経由にし、`requests` 直呼びを残さない。

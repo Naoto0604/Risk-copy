@@ -88,6 +88,23 @@ _COOKIE_REASONS = {
     "COOKIE_SAMESITE_NONE_WITHOUT_SECURE": "SameSite=NoneにはSecureの併用が必要です。",
 }
 
+_REDIRECT_RULES = _RULES / "redirects"
+
+_REDIRECT_SUBTYPES = {
+    "redirects.http-external": ("REDIRECT", "HTTP_REDIRECT", "外部ドメインへのHTTPリダイレクトが検出されました"),
+    "redirects.http-internal": ("REDIRECT", "HTTP_REDIRECT", "HTTPリダイレクトが検出されました"),
+    "redirects.meta-refresh-external": ("REDIRECT", "META_REFRESH", "外部ドメインへのMeta Refreshが検出されました"),
+    "redirects.meta-refresh-internal": ("REDIRECT", "META_REFRESH", "Meta Refreshが検出されました"),
+    "redirects.js-redirect-external": ("REDIRECT", "JS_REDIRECT", "外部ドメインへのJavaScriptリダイレクトが検出されました"),
+    "redirects.js-redirect-internal": ("REDIRECT", "JS_REDIRECT", "JavaScriptリダイレクトが検出されました"),
+}
+
+
+def _external(url, destination_url) -> bool:
+    return urlparse(url).netloc.lower() != urlparse(destination_url).netloc.lower()
+
+
+
 def _run_rules(rules_dir, observation, subtypes):
     """ルールを当て、旧 Finding 形式に写す。"""
     index = rule_runner.ObservationIndex()
@@ -177,64 +194,35 @@ def check_http_redirect(response):
     if not redirect_chain:
         return findings
 
-    if external_redirect:
-        severity = "LOW"
-        title = "外部ドメインへのHTTPリダイレクトが検出されました"
-        description = (
-            "HTTPリダイレクトによって外部ドメインへの遷移が"
-            "確認されました。"
-            "正当な認証・決済などでも発生するため、"
-            "意図した遷移か確認してください。"
-        )
-    else:
-        severity = "INFO"
-        title = "HTTPリダイレクトが検出されました"
-        description = (
-            "HTTPリダイレクトが確認されました。"
-            "リダイレクト先と遷移経路を確認してください。"
-        )
-
-    chain_text = []
-
-    for redirect in redirect_chain:
-        chain_text.append(
-            f'{redirect["status_code"]}: '
-            f'{redirect["from"]} -> {redirect["to"]}'
-        )
-
-    findings.append({
-        "type": "REDIRECT",
-        "subtype": "HTTP_REDIRECT",
-        "severity": severity,
-        "title": title,
-        "url": redirect_chain[0]["from"],
-        "description": description,
-        "evidence": (
-            "\n".join(chain_text)
-            + f"\nFinal URL: {response.url}"
-        ),
+    observation = Observation.ok("http_redirects", response.url, {
+        "chain": redirect_chain,
+        "chain_length": len(redirect_chain),
+        "external": external_redirect,
+        "final_url": response.url,
     })
+
+    evidence = "\n".join(
+        f'{item["status"]}: {item["from"]} -> {item["to"]}' for item in redirect_chain
+    ) + f"\nFinal URL: {response.url}"
+
+    for finding in _run_rules(_REDIRECT_RULES, observation, _REDIRECT_SUBTYPES):
+        if finding["subtype"] != "HTTP_REDIRECT":
+            continue
+        finding["url"] = redirect_chain[0]["from"]
+        finding["evidence"] = evidence
+        findings.append(finding)
 
     return findings
 
 
 def check_meta_refresh(url, response):
-    """HTMLのMeta Refreshによる自動遷移を検出する。"""
-    findings = []
-
-    meta_tags = re.findall(
-        r"<meta\b[^>]*>",
-        response.text,
-        re.IGNORECASE,
-    )
-
-    for meta_tag in meta_tags:
+    """HTMLのMeta Refreshによる自動遷移を検出する。判定は rules 側。"""
+    for meta_tag in re.findall(r"<meta\b[^>]*>", response.text, re.IGNORECASE):
         http_equiv = re.search(
             r"""\bhttp-equiv\s*=\s*(?:"refresh"|'refresh'|refresh)(?=\s|/?>)""",
             meta_tag,
             re.IGNORECASE,
         )
-
         if not http_equiv:
             continue
 
@@ -243,81 +231,47 @@ def check_meta_refresh(url, response):
             meta_tag,
             re.IGNORECASE,
         )
-
         if not content_match:
             continue
 
-        content = next(
-            (
-                value
-                for value in content_match.groups()
-                if value is not None
-            ),
-            "",
-        )
-
-        url_match = re.search(
-            r"(?:^|;)\s*url\s*=\s*(.+?)\s*$",
-            content,
-            re.IGNORECASE,
-        )
-
+        content = next((v for v in content_match.groups() if v is not None), "")
+        url_match = re.search(r"(?:^|;)\s*url\s*=\s*(.+?)\s*$", content, re.IGNORECASE)
         if not url_match:
             continue
 
         destination = url_match.group(1).strip().strip("'\"")
-
         if not destination:
             continue
 
         destination_url = urljoin(response.url, destination)
-
-        source_host = urlparse(response.url).netloc
-        destination_host = urlparse(destination_url).netloc
-
-        if source_host.lower() != destination_host.lower():
-            severity = "LOW"
-            title = "外部ドメインへのMeta Refreshが検出されました"
-            description = (
-                "HTMLのMeta Refreshによって外部ドメインへの"
-                "遷移が確認されました。"
-                "意図した遷移か確認してください。"
-            )
-        else:
-            severity = "INFO"
-            title = "Meta Refreshが検出されました"
-            description = (
-                "HTMLのMeta Refreshによる自動遷移が確認されました。"
-                "遷移先と設定内容を確認してください。"
-            )
-
-        findings.append({
-            "type": "REDIRECT",
-            "subtype": "META_REFRESH",
-            "severity": severity,
-            "title": title,
-            "url": response.url,
-            "description": description,
-            "evidence": (
-                f"Meta Refresh: {response.url} -> {destination_url}\n"
-                f"Content: {content}"
-            ),
+        observation = Observation.ok("http_redirects", response.url, {
+            "chain": [],
+            "chain_length": 0,
+            "external": False,
+            "final_url": response.url,
+            "meta_refresh": {
+                "destination": destination_url,
+                "content": content,
+                "external": _external(response.url, destination_url),
+            },
         })
 
-        # 1ページにつき1件にまとめる
-        break
+        findings = []
+        for finding in _run_rules(_REDIRECT_RULES, observation, _REDIRECT_SUBTYPES):
+            if finding["subtype"] != "META_REFRESH":
+                continue
+            finding["evidence"] = (
+                f"Meta Refresh: {response.url} -> {destination_url}\nContent: {content}"
+            )
+            findings.append(finding)
+        return findings
 
-    return findings
-
+    return []
 
 def check_js_redirect(url, response):
-    """HTML内のJavaScriptによるリダイレクトを検出する。"""
-    findings = []
-
+    """HTML内のJavaScriptによるリダイレクトを検出する。判定は rules 側。"""
     script_blocks = re.findall(
-        r"<script\b[^>]*>(.*?)</script>",
-        response.text,
-        re.IGNORECASE | re.DOTALL,
+        r"<script\b[^>]*>(.*?)</script>", response.text, re.IGNORECASE | re.DOTALL
     )
 
     patterns = [
@@ -329,54 +283,35 @@ def check_js_redirect(url, response):
     for script in script_blocks:
         for pattern in patterns:
             match = re.search(pattern, script, re.IGNORECASE)
-
             if not match:
                 continue
 
             destination = match.group(1).strip()
             destination_url = urljoin(response.url, destination)
-
-            source_host = urlparse(response.url).netloc
-            destination_host = urlparse(destination_url).netloc
-
-            if source_host.lower() != destination_host.lower():
-                severity = "LOW"
-                title = (
-                    "外部ドメインへのJavaScriptリダイレクトが"
-                    "検出されました"
-                )
-                description = (
-                    "JavaScriptによって外部ドメインへの自動遷移が"
-                    "確認されました。"
-                    "意図した遷移か確認してください。"
-                )
-            else:
-                severity = "INFO"
-                title = "JavaScriptリダイレクトが検出されました"
-                description = (
-                    "JavaScriptによる自動遷移が確認されました。"
-                    "遷移先とスクリプトの内容を確認してください。"
-                )
-
-            findings.append({
-                "type": "REDIRECT",
-                "subtype": "JS_REDIRECT",
-                "severity": severity,
-                "title": title,
-                "url": response.url,
-                "description": description,
-                "evidence": (
-                    f"JavaScript Redirect: "
-                    f"{response.url} -> {destination_url}\n"
-                    f"Script: {script.strip()}"
-                ),
+            observation = Observation.ok("http_redirects", response.url, {
+                "chain": [],
+                "chain_length": 0,
+                "external": False,
+                "final_url": response.url,
+                "js_redirect": {
+                    "destination": destination_url,
+                    "script": script.strip(),
+                    "external": _external(response.url, destination_url),
+                },
             })
 
-            # 1ページにつき1件にまとめる
+            findings = []
+            for finding in _run_rules(_REDIRECT_RULES, observation, _REDIRECT_SUBTYPES):
+                if finding["subtype"] != "JS_REDIRECT":
+                    continue
+                finding["evidence"] = (
+                    f"JavaScript Redirect: {response.url} -> {destination_url}\n"
+                    f"Script: {script.strip()}"
+                )
+                findings.append(finding)
             return findings
 
-    return findings
-
+    return []
 
 _COOKIE_NAME_TOKEN = re.compile(r"^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$")
 _COOKIE_DELIMITER = re.compile(r"\s*[!#$%&'*+\-.^_`|~0-9A-Za-z]+\s*=")

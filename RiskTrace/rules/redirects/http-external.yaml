@@ -1,0 +1,27 @@
+- id: redirects.http-external
+  title: 外部ドメインへのHTTPリダイレクトが検出されました
+  severity: LOW
+  confidence: medium
+  requires:
+    - proof
+    - consent
+  collectors:
+    - http_redirects
+  when:
+    all:
+      - obs:
+          collector: http_redirects
+          path: chain_length
+          op: gt
+          value: 0
+      - obs:
+          collector: http_redirects
+          path: external
+          op: eq
+          value: true
+  message: HTTPリダイレクトによって外部ドメインへの遷移が確認されました。
+  why: 正当な認証・決済などでも発生しますが、意図した遷移かは別途確認が必要です。
+  fix: リダイレクト先と遷移経路を確認します。
+  verify: 遷移先が意図したホストであることを確認します。
+  tags:
+    - redirect
