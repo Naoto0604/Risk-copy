@@ -117,7 +117,6 @@ python -m unittest discover -s tests -v
 
 ## 既知の未対応
 
-- `_RUNNING` による二重起動抑止は参照のみで未実装
 - `app_v2` に CSRF・認証・レート制限が無い
 - 相関ルールは `rules/correlations/` に置く。`collectors` に2つ以上を列挙し、`when` はその中だけを参照する
 - 相関の Finding は `rule_id` に `corr:` が付き、単独ルールと出所が分かれる
