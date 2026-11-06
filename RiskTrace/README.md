@@ -123,6 +123,7 @@ python -m unittest discover -s tests -v
 - 相関の Finding は `rule_id` に `corr:` が付き、単独ルールと出所が分かれる
 - 保存期間を過ぎたレポートは起動時に消える。Finding も同時に消え、`scans` の行だけ履歴として残る
 - `legacy_checks` は観測の組み立てと旧形式への変換だけを行う（判定はすべて `rules/` 側）
+- v1 の `/export/` もレポート形式（schema 2.0）で出力する。旧形式の findings 行ではなく、`rule_id` ごとに集約した行になる
 - 認証は単一パスワードのみ。利用者ごとの権限分離、パスワード変更、ログイン試行の制限は無い
 - CSRF は全 POST にトークンを要求する。レート制限はホスト単位5回/60秒で、プロセス内の記憶のみ
 - 公開する場合は HTTPS 終端と `RISKTRACE_SECRET` の固定が前提

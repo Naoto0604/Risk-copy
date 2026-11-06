@@ -15,7 +15,7 @@ from engine.cve import lookup_cve_candidates
 from flask import Flask, render_template, request, redirect
 from flask import make_response
 from engine.legacy_ports import check_web_ports
-from report_export import register_export_routes
+from engine.legacy_export import register_export_routes
 # ======= #5 追加 =======
 # データベース読み込み用import
 from database.models import (
