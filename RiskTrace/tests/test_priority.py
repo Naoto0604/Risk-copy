@@ -1,7 +1,7 @@
 import unittest
 
 from analyzer.priority import aggregate_priorities, calculate_priority
-
+from analyzer.priority import aggregate_priorities, calculate_priority, priority_rows
 
 class TestCalculatePriority(unittest.TestCase):
 
@@ -396,7 +396,44 @@ class TestCalculatePriority(unittest.TestCase):
         self.assertEqual(scores["HTTPS"], 7.5)
         self.assertEqual(scores["SECURITY_HEADER"], 5.2)
 
+class TestPriorityFromFindings(unittest.TestCase):
 
+    def finding(self, rule_id="headers.csp-missing", severity="MEDIUM", why=""):
+        from engine.rule_runner import Finding
+
+        return Finding(
+            id="fnd_x",
+            rule_id=rule_id,
+            title="CSP が無い",
+            severity=severity,
+            confidence="high",
+            subject="https://example.test/",
+            message="CSP がありません。",
+            why=why,
+            fix="CSP を付けます。",
+            verify="",
+        )
+
+    def test_header_rule_maps_to_security_header(self):
+        row = priority_rows([self.finding()])[0]
+        self.assertEqual(row["type"], "SECURITY_HEADER")
+        self.assertGreater(row["priority_score"], 0)
+
+    def test_transport_rule_maps_to_https(self):
+        row = priority_rows([self.finding("transport.https-missing", "HIGH")])[0]
+        self.assertEqual(row["type"], "HTTPS")
+
+    def test_port_evidence_sets_the_reason(self):
+        why = "Host: example.test\nPort: 6379\nNetwork scope: PUBLIC"
+        row = priority_rows([self.finding("ports.open-sensitive-port", "LOW", why)])[0]
+        self.assertEqual(row["network_scope"], "PUBLIC")
+        self.assertIn("Redis", row["priority_reason"])
+
+    def test_info_rule_is_excluded(self):
+        self.assertEqual(priority_rows([self.finding("transport.https-present", "INFO")]), [])
+
+    def test_empty_input(self):
+        self.assertEqual(priority_rows([]), [])
 
 
 if __name__ == "__main__":

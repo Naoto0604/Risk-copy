@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Iterable
 
+from analyzer import priority as priority_module
 from engine.rule_runner import SEVERITY_ORDER, Finding
 
 MAX_ACTIONS = 3
@@ -221,16 +222,40 @@ def build(
     low = [*low_confidence, *low_correlations]
 
     groups = _group(normal)
-    actions = tuple(
-        Action(
-            rule_id=group.rule_id,
-            title=group.title,
-            severity=group.severity,
-            reason=f"{group.count} 件の対象で観測されました",
-            fix="",
+    ranked: list[Action] = []
+    seen_rules: set[str] = set()
+    for row in priority_module.priority_rows(normal):
+        rule_id = str(row.get("rule_id") or "")
+        if not rule_id or rule_id in seen_rules:
+            continue
+        seen_rules.add(rule_id)
+        ranked.append(Action(
+            rule_id=rule_id,
+            title=str(row.get("title") or ""),
+            severity=str(row.get("severity") or ""),
+            reason=(
+                f"{row.get('priority') or ''}（{row.get('priority_score')}）"
+                f" / {row.get('priority_reason') or ''}"
+            ),
+            fix=str(row.get("recommended_action") or ""),
+        ))
+        if len(ranked) >= MAX_ACTIONS:
+            break
+
+    if ranked:
+        actions = tuple(ranked)
+    else:
+        # 優先度が付かない（INFO のみ等）場合は重大度順に戻す。
+        actions = tuple(
+            Action(
+                rule_id=group.rule_id,
+                title=group.title,
+                severity=group.severity,
+                reason=f"{group.count} 件の対象で観測されました",
+                fix="",
+            )
+            for group in groups[:MAX_ACTIONS]
         )
-        for group in groups[:MAX_ACTIONS]
-    )
 
     review: list[ReviewItem] = []
     for name, reason in skipped:

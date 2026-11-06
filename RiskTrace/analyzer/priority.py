@@ -400,11 +400,19 @@ def calculate_priority(findings, correlations, attack_paths):
             continue
 
         severity = _text(finding.get("severity", "INFO")).upper()
-        rationale = _port_priority_reason(finding) or rationale
+        rationale = (
+            _port_priority_reason(finding)
+            or _text(finding.get("why"))
+            or rationale
+        )
         scope = _scope_for_finding(finding, findings)
         scope_bonus, scope_note = _scope_adjustment(scope)
         score = base + (scope_bonus if modern else 0.0)
-        reasons = [rationale, scope_note]
+        reasons = [rationale[:300], scope_note]
+        if finding.get("confidence") == "medium":
+            reasons.append("確度は中程度です。")
+        elif finding.get("confidence") == "low":
+            reasons.append("確度は低めです。")
 
         if _related_to_correlation(finding, correlations):
             score += 0.5 if modern else 2
@@ -444,6 +452,7 @@ def calculate_priority(findings, correlations, attack_paths):
         display_description += f"\n推奨対応：{recommendation}"
 
         priorities.append({
+            "rule_id": finding.get("rule_id"),
             "type": finding.get("type"),
             "subtype": finding.get("subtype"),
             "title": finding.get("title"),
@@ -458,15 +467,18 @@ def calculate_priority(findings, correlations, attack_paths):
             "priority_reason": " ".join(reasons),
             "confidence": confidence,
             "network_scope": scope,
+            "confidence_raw": finding.get("confidence"),
             "cvss_score": cvss_score,
             "cvss_severity": _cvss_severity(finding, cvss_score) if is_cve else None,
             "recommended_action": recommendation,
             "is_cve_candidate": is_cve,
         })
 
+    confidence_rank = {"high": 2, "medium": 1, "low": 0}
     priorities.sort(
         key=lambda item: (
             item["priority_score"],
+            confidence_rank.get(item.get("confidence_raw") or "", 0),
             item.get("cvss_score") or 0.0,
             item.get("title") or "",
         ),
@@ -545,3 +557,43 @@ def aggregate_priorities(priorities):
         reverse=True,
     )
     return result
+
+
+#: rule_id の接頭辞から v1 の type へ戻す対応。
+CATEGORY_TYPES = {
+    "headers": "SECURITY_HEADER",
+    "cookies": "COOKIE",
+    "tls": "TLS",
+    "ports": "PORT_SCAN",
+    "cve": "VULNERABILITY_LOOKUP",
+    "transport": "HTTPS",
+    "redirects": "REDIRECT",
+    "dns": "DNS",
+    "explore": "EXPLORE",
+    "baas": "BAAS",
+    "corr": "CORRELATION",
+}
+
+
+def _legacy_dict(finding) -> dict:
+    """v2 の Finding を、既存の採点が読む辞書へ写す。"""
+    prefix = finding.rule_id.split(":", 1)[0].split(".", 1)[0]
+    observed = finding.observed or {}
+    return {
+        "type": CATEGORY_TYPES.get(prefix, "OTHER"),
+        "rule_id": finding.rule_id,
+        "subtype": observed.get("subtype") or finding.rule_id,
+        "severity": finding.severity,
+        "title": finding.title,
+        "url": finding.subject,
+        "description": finding.message,
+        "why": finding.why,
+        "confidence": finding.confidence,
+        "evidence": finding.why,
+        "recommendation": finding.fix,
+    }
+
+
+def priority_rows(findings) -> list[dict]:
+    """v2 の Finding 群から優先度の行を作る。"""
+    return calculate_priority([_legacy_dict(item) for item in findings or []], [], [])
