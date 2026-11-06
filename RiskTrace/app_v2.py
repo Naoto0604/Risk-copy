@@ -14,20 +14,19 @@
 
 from __future__ import annotations
 
+import re
 import threading
 import uuid
-
-from flask import Flask, abort, jsonify, render_template, request
-import re
 from urllib.parse import urlsplit
-from flask import Response
-from report import export as report_export
+
+from flask import Flask, Response, abort, jsonify, render_template, request
 
 from database import report_store
 from database.models import create_scan, get_scan, init_db, update_scan_status
 from engine import service
 from engine.rules import RuleLoadError
 from evidence import store
+from report import export as report_export
 from verification import consent as consent_module
 from verification import ownership
 from verification.gate import GateError
@@ -41,6 +40,30 @@ COLLECTORS: tuple[str, ...] = tuple(step.name for step in service.plan.DEFAULT_S
 #: 実行中スキャン。二重起動の防止に使う。
 _RUNNING: dict[str, threading.Thread] = {}
 _LOCK = threading.Lock()
+
+
+class AlreadyRunning(Exception):
+    """同じ scan_id が実行中。"""
+
+
+def _claim(scan_id: str, thread: threading.Thread) -> None:
+    """実行中でなければ登録する。実行中なら AlreadyRunning。"""
+    with _LOCK:
+        existing = _RUNNING.get(scan_id)
+        if existing is not None and existing.is_alive():
+            raise AlreadyRunning(scan_id)
+        _RUNNING[scan_id] = thread
+
+
+def _release(scan_id: str) -> None:
+    with _LOCK:
+        _RUNNING.pop(scan_id, None)
+
+
+def _running(scan_id: str) -> bool:
+    with _LOCK:
+        thread = _RUNNING.get(scan_id)
+        return thread is not None and thread.is_alive()
 
 
 def _bootstrap() -> None:
@@ -65,8 +88,7 @@ def _run(scan_id: str, target: str, consent_id: str | None, selected: tuple[str,
     else:
         update_scan_status(scan_id, "COMPLETED")
     finally:
-        with _LOCK:
-            _RUNNING.pop(scan_id, None)
+        _release(scan_id)
 
 
 @app.route("/v2/", methods=["GET"])
@@ -86,7 +108,6 @@ def scan():
 
     scan_id = str(uuid.uuid4())
     protocol = "https" if target.startswith("https://") else "http"
-    create_scan(scan_id, target, protocol, "QUEUED")
 
     thread = threading.Thread(
         target=_run,
@@ -94,9 +115,19 @@ def scan():
         name=f"scan-{scan_id}",
         daemon=True,
     )
-    with _LOCK:
-        _RUNNING[scan_id] = thread
-    thread.start()
+
+    try:
+        _claim(scan_id, thread)
+    except AlreadyRunning:
+        return render_template("scan_form_v2.html", collectors=COLLECTORS,
+                               error="同じスキャンが実行中です"), 409
+
+    try:
+        create_scan(scan_id, target, protocol, "QUEUED")
+        thread.start()
+    except Exception:
+        _release(scan_id)
+        raise
 
     return render_template("scanning_v2.html", scan_id=scan_id, target=target)
 
@@ -107,15 +138,13 @@ def status(scan_id: str):
     if row is None:
         abort(404)
 
-    with _LOCK:
-        running = scan_id in _RUNNING
-
     return jsonify({
         "scan_id": scan_id,
         "status": row["status"],
         "error": row["error_message"],
-        "running": running,
+        "running": _running(scan_id),
     })
+
 
 def _stored_or_404(scan_id: str) -> dict:
     if get_scan(scan_id) is None:
@@ -126,12 +155,14 @@ def _stored_or_404(scan_id: str) -> dict:
     stored["scan_id"] = scan_id
     return stored
 
+
 def _filename(stored: dict, scan_id: str, suffix: str) -> str:
     """ダウンロード名。ホスト以外の文字は落とす。"""
     raw = str(stored.get("target") or "")
     host = urlsplit(raw).hostname if "://" in raw else raw
     host = re.sub(r"[^A-Za-z0-9.-]+", "-", host or "report").strip("-") or "report"
     return f"risktrace-{host}-{scan_id[:8]}.{suffix}"
+
 
 def _attachment(body: bytes, filename: str, mimetype: str) -> Response:
     response = Response(body, mimetype=mimetype)
@@ -158,6 +189,7 @@ def report_csv(scan_id: str):
         "text/csv",
     )
 
+
 @app.route("/v2/report/<scan_id>", methods=["GET"])
 def report(scan_id: str):
     if get_scan(scan_id) is None:
@@ -168,6 +200,7 @@ def report(scan_id: str):
         abort(404)
     stored["scan_id"] = scan_id
     return render_template("report_v2.html", report=stored)
+
 
 if __name__ == "__main__":
     _bootstrap()

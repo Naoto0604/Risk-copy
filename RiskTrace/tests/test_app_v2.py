@@ -1,4 +1,5 @@
 import re
+import threading
 import tempfile
 import time
 import unittest
@@ -9,6 +10,7 @@ from unittest import mock
 from analyzer.scoring_v2 import score
 from database import db as db_module
 from database import report_store
+import app_v2
 from app_v2 import _RUNNING
 from database.models import get_scan, init_db
 from evidence import store
@@ -190,5 +192,87 @@ class TestReport(AppTestCase):
     def test_export_of_unknown_scan_is_404(self):
         self.assertEqual(self.client.get("/v2/report/nope/csv").status_code, 404)
 
+
+
+class TestRunningGuard(AppTestCase):
+
+    def test_claim_rejects_a_live_thread(self):
+        gate = threading.Event()
+        thread = threading.Thread(target=gate.wait, daemon=True)
+        thread.start()
+        try:
+            app_v2._claim("scan-a", thread)
+            with self.assertRaises(app_v2.AlreadyRunning):
+                app_v2._claim("scan-a", thread)
+        finally:
+            gate.set()
+            thread.join(timeout=5)
+            app_v2._release("scan-a")
+
+    def test_dead_thread_is_replaced(self):
+        thread = threading.Thread(target=lambda: None, daemon=True)
+        thread.start()
+        thread.join(timeout=5)
+        try:
+            app_v2._claim("scan-b", thread)
+            replacement = threading.Thread(target=lambda: None, daemon=True)
+            app_v2._claim("scan-b", replacement)
+            self.assertIs(_RUNNING["scan-b"], replacement)
+        finally:
+            app_v2._release("scan-b")
+
+    def test_release_removes_the_entry(self):
+        thread = threading.Thread(target=lambda: None, daemon=True)
+        app_v2._claim("scan-c", thread)
+        app_v2._release("scan-c")
+        self.assertNotIn("scan-c", _RUNNING)
+
+    def test_running_is_true_for_a_live_thread(self):
+        gate = threading.Event()
+        thread = threading.Thread(target=gate.wait, daemon=True)
+        thread.start()
+        try:
+            app_v2._claim("scan-d", thread)
+            self.assertTrue(app_v2._running("scan-d"))
+        finally:
+            gate.set()
+            thread.join(timeout=5)
+            app_v2._release("scan-d")
+
+    def test_running_is_false_for_a_finished_thread(self):
+        thread = threading.Thread(target=lambda: None, daemon=True)
+        thread.start()
+        thread.join(timeout=5)
+        try:
+            app_v2._claim("scan-e", thread)
+            self.assertFalse(app_v2._running("scan-e"))
+        finally:
+            app_v2._release("scan-e")
+
+
+class TestDuplicatePost(AppTestCase):
+
+    def setUp(self):
+        super().setUp()
+        self.gate = threading.Event()
+
+        def blocking(scan_id, **_kwargs):
+            self.gate.wait(timeout=5)
+            return fake_run_scan(scan_id)
+
+        patcher = mock.patch("app_v2.service.run_scan", side_effect=blocking)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def tearDown(self):
+        self.gate.set()
+        super().tearDown()
+
+    def test_second_post_with_the_same_id_is_409(self):
+        with mock.patch("app_v2.uuid.uuid4", return_value="fixed-id"):
+            first = self.client.post("/v2/scan", data={"target": TARGET})
+            second = self.client.post("/v2/scan", data={"target": TARGET})
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 409)
 if __name__ == "__main__":
     unittest.main()
