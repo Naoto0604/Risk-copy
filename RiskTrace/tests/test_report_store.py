@@ -53,11 +53,10 @@ class StoreTestCase(unittest.TestCase):
         finally:
             conn.close()
 
-    def save(self, scan_id="scan-1", findings=()):
-        report = model.build(URL, findings=findings, score_result=score(list(findings)))
+    def save(self, scan_id="scan-1", findings=(), target=URL):
+        report = model.build(target, findings=findings, score_result=score(list(findings)))
         report_store.save_report(scan_id, report, findings=tuple(findings))
         return report
-
 
 class TestSave(StoreTestCase):
 
@@ -107,6 +106,87 @@ class TestPrevious(StoreTestCase):
         self.save()
         self.assertIsNone(report_store.previous_for(URL, exclude_scan_id="scan-1"))
 
+    def test_other_scheme_matches(self):
+        self.scan("scan-2")
+        self.save("scan-1")
+        previous = report_store.previous_for("http://example.test", exclude_scan_id="scan-2")
+        self.assertEqual(previous["scan_id"], "scan-1")
+
+    def test_trailing_slash_is_ignored(self):
+        self.scan("scan-2")
+        self.save("scan-1", target="https://example.test")
+        self.assertIsNotNone(
+            report_store.previous_for("https://example.test/", exclude_scan_id="scan-2")
+        )
+
+    def test_case_is_ignored(self):
+        self.scan("scan-2")
+        self.save("scan-1", target="https://Example.Test/")
+        self.assertIsNotNone(
+            report_store.previous_for("https://example.test/", exclude_scan_id="scan-2")
+        )
+
+    def test_different_host_does_not_match(self):
+        self.scan("scan-2")
+        self.save("scan-1")
+        self.assertIsNone(
+            report_store.previous_for("https://other.test/", exclude_scan_id="scan-2")
+        )
+
+    def test_blank_target_returns_none(self):
+        self.save()
+        self.assertIsNone(report_store.previous_for("  ", exclude_scan_id="scan-2"))
+
+    def test_tiebreak_prefers_the_larger_scan_id(self):
+        self.scan("scan-2")
+        self.scan("scan-3")
+        self.save("scan-1")
+        self.save("scan-3")
+        conn = db_module.get_connection()
+        try:
+            conn.execute("UPDATE reports_v2 SET created_at = '2026-01-01T00:00:00+00:00'")
+            conn.commit()
+        finally:
+            conn.close()
+
+        previous = report_store.previous_for(URL, exclude_scan_id="scan-2")
+        self.assertEqual(previous["scan_id"], "scan-3")
+
+    def test_compared_on_is_recorded(self):
+        self.save()
+        previous = report_store.previous_for(URL, exclude_scan_id="scan-2")
+        self.assertEqual(previous["compared_on"], "host")
+
+
+class TestHostMigration(StoreTestCase):
+
+    def test_old_table_gains_the_host_column(self):
+        conn = db_module.get_connection()
+        try:
+            conn.execute("DROP TABLE reports_v2")
+            conn.execute(
+                "CREATE TABLE reports_v2 (scan_id TEXT PRIMARY KEY, target TEXT NOT NULL,"
+                " overall INTEGER NOT NULL, level TEXT NOT NULL, coverage REAL,"
+                " payload TEXT NOT NULL, created_at TEXT NOT NULL)"
+            )
+            conn.execute(
+                "INSERT INTO reports_v2 VALUES (?, ?, ?, ?, ?, ?, ?)",
+                ("scan-1", URL, 10, "LOW", 1.0, "{}", "2026-01-01T00:00:00+00:00"),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        report_store.init_reports()
+
+        conn = db_module.get_connection()
+        try:
+            row = conn.execute(
+                "SELECT host FROM reports_v2 WHERE scan_id = 'scan-1'"
+            ).fetchone()
+        finally:
+            conn.close()
+        self.assertEqual(row["host"], "example.test")
 
 if __name__ == "__main__":
     unittest.main()

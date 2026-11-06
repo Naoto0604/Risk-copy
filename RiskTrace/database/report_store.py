@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
+from urllib.parse import urlsplit
 from typing import Any
 
 from database import db
@@ -32,6 +33,12 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+def _host_of(target: str) -> str:
+    """比較用のホスト。スキーム・パス・大文字小文字を落とす。"""
+    text = (target or "").strip()
+    host = urlsplit(text).hostname if "://" in text else text.split("/", 1)[0]
+    return (host or "").lower()
+
 def init_reports(conn: Any = None) -> None:
     own = conn is None
     if own:
@@ -42,6 +49,7 @@ def init_reports(conn: Any = None) -> None:
             CREATE TABLE IF NOT EXISTS reports_v2 (
                 scan_id TEXT PRIMARY KEY,
                 target TEXT NOT NULL,
+                host TEXT,
                 overall INTEGER NOT NULL,
                 level TEXT NOT NULL,
                 coverage REAL,
@@ -52,9 +60,19 @@ def init_reports(conn: Any = None) -> None:
                     ON DELETE CASCADE
             )
         """)
+        columns = {row["name"] for row in conn.execute("PRAGMA table_info(reports_v2)")}
+        if "host" not in columns:
+            conn.execute("ALTER TABLE reports_v2 ADD COLUMN host TEXT")
+        for row in conn.execute(
+            "SELECT scan_id, target FROM reports_v2 WHERE host IS NULL"
+        ).fetchall():
+            conn.execute(
+                "UPDATE reports_v2 SET host = ? WHERE scan_id = ?",
+                (_host_of(row["target"]), row["scan_id"]),
+            )
         conn.execute("""
-            CREATE INDEX IF NOT EXISTS idx_reports_v2_target_created
-                ON reports_v2 (target, created_at)
+            CREATE INDEX IF NOT EXISTS idx_reports_v2_host_created
+                ON reports_v2 (host, created_at)
         """)
         conn.execute("""
             CREATE TABLE IF NOT EXISTS findings_v2 (
@@ -86,7 +104,6 @@ def init_reports(conn: Any = None) -> None:
         if own:
             conn.close()
 
-
 def save_report(
     scan_id: str,
     report: ReportModel,
@@ -99,22 +116,25 @@ def save_report(
         raise ReportStoreError("scan_id が空です")
 
     payload = json.dumps(report.to_dict(), ensure_ascii=False)
+    host = _host_of(report.target)
     conn = db.get_connection()
 
     try:
         conn.execute(
             """
-            INSERT INTO reports_v2 (scan_id, target, overall, level, coverage, payload, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO reports_v2
+                (scan_id, target, host, overall, level, coverage, payload, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(scan_id) DO UPDATE SET
                 target = excluded.target,
+                host = excluded.host,
                 overall = excluded.overall,
                 level = excluded.level,
                 coverage = excluded.coverage,
                 payload = excluded.payload,
                 created_at = excluded.created_at
             """,
-            (scan_id, report.target, report.overall, report.level, report.coverage,
+            (scan_id, report.target, host, report.overall, report.level, report.coverage,
              payload, _now()),
         )
 
@@ -158,23 +178,40 @@ def load_report(scan_id: str) -> dict | None:
 
 
 def previous_for(target: str, *, exclude_scan_id: str) -> dict | None:
-    """同じ対象の直近のレポートから、比較用の要約だけ返す。"""
+    """同じホストの直近のレポートから、比較用の要約だけ返す。
+
+    比較元はホストで決める。スキーム・末尾スラッシュ・大文字小文字は無視する。
+    同じ時刻なら scan_id の大きい方を採り、結果を再現可能にする。
+    """
+    host = _host_of(target)
+    if not host:
+        return None
+
     conn = db.get_connection()
     try:
         row = conn.execute(
             """
-            SELECT overall, level FROM reports_v2
-            WHERE target = ? AND scan_id != ?
-            ORDER BY created_at DESC LIMIT 1
+            SELECT scan_id, overall, level, target, created_at FROM reports_v2
+            WHERE host = ? AND scan_id != ?
+            ORDER BY created_at DESC, scan_id DESC LIMIT 1
             """,
-            (target, exclude_scan_id),
+            (host, exclude_scan_id),
         ).fetchone()
     finally:
         conn.close()
 
     if row is None:
         return None
-    return {"overall": row[0], "level": row[1]}
+    return {
+        "scan_id": row["scan_id"],
+        "overall": row["overall"],
+        "level": row["level"],
+        "target": row["target"],
+        "created_at": row["created_at"],
+        "compared_on": "host",
+    }
+
+
 
 
 def findings_for(scan_id: str) -> list[dict]:
