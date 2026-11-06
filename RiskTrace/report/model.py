@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 from typing import Any, Iterable
 
 from analyzer import priority as priority_module
+from engine.attack_path import AttackPath
 from engine.rule_runner import SEVERITY_ORDER, Finding
 
 MAX_ACTIONS = 3
@@ -126,6 +127,7 @@ class ReportModel:
     previous: dict[str, Any] | None = None
     log: tuple[dict[str, Any], ...] = ()
     excluded_low_confidence: int = 0
+    paths: tuple[AttackPath, ...] = ()
 
     @property
     def review_count(self) -> int:
@@ -150,6 +152,7 @@ class ReportModel:
             "previous": self.previous,
             "log": list(self.log),
             "excluded_low_confidence": self.excluded_low_confidence,
+            "paths": [path.to_dict() for path in self.paths],
         }
 
 
@@ -213,6 +216,7 @@ def build(
     previous: dict[str, Any] | None = None,
     log: Iterable[dict[str, Any]] = (),
     generated_at: str | None = None,
+    paths: Iterable[AttackPath] = (),
 ) -> ReportModel:
     """表示モデルを組み立てる。"""
     if not (target or "").strip():
@@ -224,7 +228,7 @@ def build(
     groups = _group(normal)
     ranked: list[Action] = []
     seen_rules: set[str] = set()
-    for row in priority_module.priority_rows(normal):
+    for row in priority_module.priority_rows(normal, paths):
         rule_id = str(row.get("rule_id") or "")
         if not rule_id or rule_id in seen_rules:
             continue
@@ -313,5 +317,6 @@ def build(
         evidence=tuple(evidence),
         previous=previous,
         log=tuple(log),
-        excluded_low_confidence=int(getattr(score_result, "excluded_low_confidence", 0)),
+        excluded_low_confidence=score_result.excluded_low_confidence,
+        paths=tuple(paths),
     )

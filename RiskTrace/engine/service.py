@@ -22,6 +22,7 @@ from database import report_store
 from analyzer import scoring_v2
 from database import queue as queue_module
 from engine import cve
+from engine import attack_path
 from engine import plan
 from engine.correlation import load_correlations_from_dir, run as run_correlations
 from engine.rule_runner import run as run_rules
@@ -59,6 +60,7 @@ class ServiceResult:
     score: Any
     report: model.ReportModel
     plan_result: plan.PlanResult
+    paths: tuple = ()
 
     @property
     def findings(self) -> tuple:
@@ -139,6 +141,7 @@ def run_scan(
         worker.stop()
 
     plan_result = captured.get("plan") or plan.PlanResult()
+    paths = attack_path.generate(plan_result.findings)
     executed = max(0, planned - len(plan_result.skipped))
 
     if cve_lookup:
@@ -163,6 +166,7 @@ def run_scan(
         skipped=plan_result.skipped,
         score_result=score_result,
         log=worker.log(),
+        paths=paths,
     )
     previous = report_store.previous_for(target, exclude_scan_id=scan_id)
     if previous is not None:
@@ -177,6 +181,7 @@ def run_scan(
             score_result=score_result,
             previous=previous,
             log=worker.log(),
+            paths=paths,
         )
 
     report_store.save_report(
@@ -193,6 +198,7 @@ def run_scan(
         score=score_result,
         report=report,
         plan_result=plan_result,
+        paths=paths,
     )
 
 

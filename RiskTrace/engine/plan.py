@@ -23,7 +23,7 @@ from database import db
 from collectors.baas import endpoints as baas
 from collectors.dns import records
 from collectors.explore import assets, crawl, discover, repo, subdomains
-from collectors.http import cookies, cors, headers, redirects
+from collectors.http import cookies, cors, headers, redirects, transport
 from collectors.ports import scan as ports
 from collectors.tls import probe as tls
 from engine.correlation import load_correlations_from_dir, run as run_correlations
@@ -100,6 +100,8 @@ def _baas_step(url: str, scheduler, context: dict) -> Observation:
 
 #: 実行順。前提は左から満たされる。
 DEFAULT_STEPS: tuple[Step, ...] = (
+    Step("http_transport", lambda url, scheduler, context: transport.collect(url)),
+    Step("http_headers", ...),
     Step("http_headers", lambda url, scheduler, context: headers.collect(url, scheduler)),
     Step("http_cookies", lambda url, scheduler, context: cookies.collect(url, scheduler)),
     Step("tls", lambda url, scheduler, context: tls.collect(url, scheduler)),

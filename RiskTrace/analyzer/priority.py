@@ -264,6 +264,11 @@ def _related_to_correlation(finding: dict, correlations: list[dict]) -> bool:
 
 def _related_to_attack_path(finding: dict, attack_paths: list[dict]) -> bool:
     for path in attack_paths or []:
+        rule_ids = path.get("rule_ids")
+        if rule_ids and path.get("url") == finding.get("url"):
+            if finding.get("rule_id") in rule_ids:
+                return True
+            continue        
         if path.get("url") != finding.get("url"):
             continue
         steps = path.get("steps", []) or []
@@ -594,6 +599,12 @@ def _legacy_dict(finding) -> dict:
     }
 
 
-def priority_rows(findings) -> list[dict]:
+def priority_rows(findings, paths=()) -> list[dict]:
     """v2 の Finding 群から優先度の行を作る。"""
-    return calculate_priority([_legacy_dict(item) for item in findings or []], [], [])
+    attack_paths = [
+        {"url": path.subject, "rule_ids": list(path.rule_ids), "steps": list(path.steps)}
+        for path in paths or ()
+    ]
+    return calculate_priority(
+        [_legacy_dict(item) for item in findings or []], [], attack_paths
+    )

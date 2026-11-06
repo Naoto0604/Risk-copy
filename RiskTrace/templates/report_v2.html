@@ -72,6 +72,23 @@
 {% else %}
 <p class="muted">該当なし。ただし 0 件は安全を意味しません。</p>
 {% endif %}
+{% if report.paths %}
+<h2>想定される攻撃経路</h2>
+<ul>
+  {% for path in report.paths %}
+  <li>
+    <span class="badge sev-{{ path.severity }}">{{ path.severity }}</span>
+    {{ path.title }}
+    <div class="muted">{{ path.subject }}</div>
+    <ol class="muted">
+      {% for step in path.steps %}<li>{{ step }}</li>{% endfor %}
+    </ol>
+    <div class="muted">{{ path.description }}</div>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+
 
 <h2>主要な所見</h2>
 {% if report.groups %}
