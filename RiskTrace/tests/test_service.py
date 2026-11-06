@@ -186,6 +186,33 @@ class TestEnqueue(ServiceTestCase):
         job_id = service.enqueue_scan("scan-1")
         self.assertEqual(queue.get_job(job_id).status, queue.QUEUED)
 
+class TestCveWiring(ServiceTestCase):
+
+    def ports_step(self, banner="8.0.25-0ubuntu0.20.04.2"):
+        observation = Observation.ok(
+            "ports",
+            URL,
+            {"host": "example.test",
+             "ports": [{"port": 3306, "state": "open", "banner": banner}]},
+        )
+        return [step("ports", observation)]
+
+    def test_cve_finding_reaches_the_report(self):
+        from unittest import mock
+        empty = {"vulnerabilities": [], "totalResults": 0, "source_url": "x", "error": None}
+        with mock.patch("engine.cve._fetch_nvd_by_cpe", return_value=empty):
+            result = self.run_scan(steps=self.ports_step())
+        self.assertIn("cve:NO_CVE_MATCH_FOUND",
+                      [group.rule_id for group in result.report.groups])
+
+    def test_cve_lookup_can_be_disabled(self):
+        from unittest import mock
+        with mock.patch("engine.cve._fetch_nvd_by_cpe") as fetch:
+            result = self.run_scan(steps=self.ports_step(), cve_lookup=False)
+        fetch.assert_not_called()
+        self.assertNotIn("cve:NO_CVE_MATCH_FOUND",
+                         [group.rule_id for group in result.report.groups])
+
 
 if __name__ == "__main__":
     unittest.main()

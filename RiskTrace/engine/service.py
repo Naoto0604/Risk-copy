@@ -16,11 +16,12 @@
 
 from __future__ import annotations
 from urllib.parse import urlsplit
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Iterable
 from database import report_store
 from analyzer import scoring_v2
 from database import queue as queue_module
+from engine import cve
 from engine import plan
 from engine.correlation import load_correlations_from_dir, run as run_correlations
 from engine.rule_runner import run as run_rules
@@ -81,6 +82,7 @@ def run_scan(
     budgets: Any = None,
     scope: Any = None,
     worker_options: dict[str, Any] | None = None,
+    cve_lookup: bool = True,
 ) -> ServiceResult:
     """1 回分の診断を実行し、結果を返す。
 
@@ -139,7 +141,13 @@ def run_scan(
     plan_result = captured.get("plan") or plan.PlanResult()
     executed = max(0, planned - len(plan_result.skipped))
 
-    score_result = scoring_v2.score(
+    if cve_lookup:
+        extra = cve.lookup_from_observations(plan_result.observations)
+        if extra:
+            plan_result = replace(
+                plan_result, findings=plan_result.findings + tuple(extra)
+            )
+    score_result = scoring_v2.score(        
         [*plan_result.findings, *plan_result.correlations],
         executed=executed,
         planned=planned,

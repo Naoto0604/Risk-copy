@@ -62,6 +62,7 @@ pip install -r requirements.txt
 $env:RISKTRACE_PASSWORD = "任意のパスワード"
 $env:RISKTRACE_SECRET = "任意の長い文字列"
 python app_v2.py
+CVE 候補の照合は NVD の API を使います。`NVD_API_KEY` を設定するとレート制限が緩みます（未設定でも動きますが、照合は 6 秒間隔になります）。
 
 `/v2/` を開く。
 
@@ -121,7 +122,6 @@ python -m unittest discover -s tests -v
 - 相関ルールは `rules/correlations/` に置く。`collectors` に2つ以上を列挙し、`when` はその中だけを参照する
 - 相関の Finding は `rule_id` に `corr:` が付き、単独ルールと出所が分かれる
 - 保存期間を過ぎたレポートは起動時に消える。Finding も同時に消え、`scans` の行だけ履歴として残る
-- バナーからの CVE 照合は未移植（旧実装は requests 直呼びのため Scheduler 経由化が必要）
 - `legacy_checks` は HTTPS 判定と旧形式への変換だけを行う（ヘッダー・Cookie・リダイレクトの判定は rules 側）
 - 認証は単一パスワードのみ。利用者ごとの権限分離、パスワード変更、ログイン試行の制限は無い
 - CSRF は全 POST にトークンを要求する。レート制限はホスト単位5回/60秒で、プロセス内の記憶のみ

@@ -11,7 +11,7 @@ from analyzer.correlation import correlate_findings
 from analyzer.attack_path import generate_attack_paths
 from analyzer.priority import aggregate_priorities, calculate_priority
 from analyzer.comparison import compare_findings
-from analyzer.vulnerability_lookup import lookup_cve_candidates
+from engine.cve import lookup_cve_candidates
 from flask import Flask, render_template, request, redirect
 from flask import make_response
 from engine.legacy_ports import check_web_ports
