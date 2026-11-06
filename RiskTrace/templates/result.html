@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RiskTrace - Result</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/result.css') }}">
+
+
+</head>
+
+<body>
+<div class="rt-page">
+
+    <header class="rt-header">
+        <div class="rt-container rt-header-inner">
+            <div>
+                <div class="rt-brand">RISKTRACE</div>
+                <div class="rt-eyebrow">SECURITY ASSESSMENT RESULT</div>
+            </div>
+            <div class="rt-header-id">SCAN {{ scan_id }}</div>
+        </div>
+    </header>
+
+    <main class="rt-container rt-main">
+
+        <!-- =====================================================
+             01. RESULT HEADER
+             ===================================================== -->
+        <section class="result-intro">
+            <div>
+                <p class="section-kicker">DIAGNOSTIC RESULT</p>
+                <h1>診断結果</h1>
+                <p class="target-url">{{ url }}</p>
+            </div>
+
+            <div class="result-actions">
+                <form action="/rescan/{{ scan_id }}" method="POST">
+                    <button class="primary-button" type="submit">
+                        このサイトを再診断
+                    </button>
+                </form>
+    
+                <a href="{{ url_for('report', scan_id=scan_id, compare_scan_id=comparison.before_scan_id) if comparison else url_for('report', scan_id=scan_id) }}" class="report-button">
+                    レポートを見る
+                </a>
+
+                <!-- M9: JSONエクスポート -->
+                <a
+                    href="{{ url_for('export_scan', scan_id=scan_id, export_format='json') }}"
+                    class="report-button"
+                >
+                    JSONをダウンロード
+                </a>
+
+                <!-- M9: CSVエクスポート -->
+                <a
+                    href="{{ url_for('export_scan', scan_id=scan_id, export_format='csv') }}"
+                    class="report-button"
+                >
+                    CSVをダウンロード
+                </a>
+            </div>
+        </section>
+
+        <!-- =====================================================
+             02. OVERALL RISK
+             ===================================================== -->
+        <section class="overview-grid">
+            {% if "score" in analysis_options %}
+            <article class="score-card">
+                <div class="card-label">OVERALL RISK SCORE</div>
+
+                <div class="score-row">
+                    <strong class="risk-score">{{ risk_score }}</strong>
+                    <span class="score-total">/ 100</span>
+                </div>
+
+                <div class="risk-level risk-{{ risk_level|lower }}">
+                    {{ risk_level }}
+                </div>
+
+                <div class="score-track">
+                    <span style="width: {{ risk_score }}%"></span>
+                </div>
+
+                {% if risk_level in ["CRITICAL", "HIGH"] %}
+                <div class="result-alert">
+                    <strong>⚠ 高いリスクが検出されました</strong>
+                    <p>
+                        複数のセキュリティ上の問題が確認されています。
+                        下の「主なリスク」と「対応優先順位」から確認してください。
+                    </p>
+                </div>
+                {% elif risk_level == "MEDIUM" %}
+                <div class="result-alert">
+                    <strong>注意が必要なリスクが検出されました</strong>
+                    <p>
+                        いくつかのセキュリティ上の問題が確認されています。
+                    </p>
+                </div>
+                {% else %}
+                <div class="result-alert">
+                    <strong>大きなリスクは検出されませんでした</strong>
+                    <p>
+                        詳細な診断結果は下部から確認できます。
+                    </p>
+                </div>
+                {% endif %}
+            </article>
+            {% else %}
+            <article class="score-card">
+                <div class="card-label">OVERALL RISK SCORE</div>
+                <p class="muted">
+                    Risk Scoreは今回の診断で選択されていません。
+                </p>
+            </article>
+            {% endif %}
+
+            <div class="scan-meta-grid">
+                <article class="info-card">
+                    <span class="card-label">SCAN ID</span>
+                    <strong class="mono">{{ scan_id }}</strong>
+                </article>
+
+                <article class="info-card">
+                    <span class="card-label">PROTOCOL</span>
+                    <strong class="mono">{{ protocol|upper }}</strong>
+                </article>
+
+                <article class="info-card">
+                    <span class="card-label">STATUS</span>
+                    <strong class="status-value">{{ status }}</strong>
+                </article>
+
+                <article class="info-card">
+                    <span class="card-label">DISCOVERED</span>
+                    <strong>{{ discovered_urls|length }} <span class="muted">URLs</span></strong>
+                </article>
+            </div>
+        </section>
+
+        <!-- =====================================================
+             03. SUMMARY COUNTS
+             ===================================================== -->
+        {% set ns = namespace(
+            https=[],
+            headers=[],
+            cookies=[],
+            other=[]
+        ) %}
+
+        {% for finding in findings %}
+            {% if finding.type == "HTTPS" and finding.severity == "HIGH" %}
+                {% set _ = ns.https.append(finding.url) %}
+            {% elif finding.type == "SECURITY_HEADER" and finding.severity != "INFO" %}
+                {% set _ = ns.headers.append(finding.url) %}
+            {% elif finding.type == "COOKIE" and finding.severity != "INFO" %}
+                {% set _ = ns.cookies.append(finding.url) %}
+            {% elif finding.severity != "INFO" %}
+                {% set _ = ns.other.append(finding.url) %}
+            {% endif %}
+        {% endfor %}
+
+        {% set https_pages = ns.https|unique|list %}
+        {% set header_pages = ns.headers|unique|list %}
+        {% set cookie_pages = ns.cookies|unique|list %}
+        {% set other_pages = ns.other|unique|list %}
+
+        <section class="panel">
+            <div class="section-heading">
+                <div>
+                    <p class="section-kicker">DIAGNOSTIC OVERVIEW</p>
+                    <h2>診断概要</h2>
+                </div>
+            </div>
+
+            <div class="summary-stats">
+                <article class="summary-stat">
+                    <span>SCANNED PAGES</span>
+                    <strong>{{ discovered_urls|length }}</strong>
+                </article>
+
+                <article class="summary-stat">
+                    <span>HIGH RISK PAGES</span>
+                    <strong>
+                        {{ risk_map.summary.high_risk_pages if risk_map and risk_map.summary else 0 }}
+                    </strong>
+                </article>
+
+                <article class="summary-stat">
+                    <span>MEDIUM RISK PAGES</span>
+                    <strong>
+                        {{ risk_map.summary.medium_risk_pages if risk_map and risk_map.summary else 0 }}
+                    </strong>
+                </article>
+
+                <article class="summary-stat">
+                    <span>TOTAL FINDINGS</span>
+                    <strong>{{ findings|length }}</strong>
+                </article>
+            </div>
+        </section>
+
+        {% if finding_summaries %}
+        <section class="panel">
+            <div class="section-heading">
+                <div>
+                    <p class="section-kicker">REPEATED FINDINGS</p>
+                    <h2>同じ種類のFindingの概要</h2>
+                </div>
+            </div>
+            <p class="muted">以下は表示上の集約です。URLごとのFindingとEvidenceは下の詳細一覧に個別に残しています。</p>
+            <div class="findings-list">
+                {% for summary in finding_summaries %}
+                <article class="finding-row">
+                    <div class="finding-severity-line severity-line-{{ summary.severity|lower }}"></div>
+                    <div class="finding-body">
+                        <div class="finding-top">
+                            <h3>{{ summary.title }}</h3>
+                            <span class="severity-badge severity-{{ summary.severity|lower }}">{{ summary.severity }}</span>
+                        </div>
+                        <div class="finding-meta">
+                            <span>{{ summary.type }}</span>
+                            {% if summary.subtype %}<span>{{ summary.subtype }}</span>{% endif %}
+                            <span>{{ summary.finding_count }}件 · {{ summary.page_count }}ページ</span>
+                        </div>
+                        <details>
+                            <summary>対象URLを表示</summary>
+                            <ul>
+                                {% for page in summary.page_details %}
+                                <li>{{ page.url }}{% if page.finding_count > 1 %}（{{ page.finding_count }}件）{% endif %}</li>
+                                {% endfor %}
+                            </ul>
+                        </details>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- =====================================================
+             04. MAIN RISKS
+             ===================================================== -->
+        <section class="panel">
+            <div class="section-heading">
+                <div>
+                    <p class="section-kicker">MAIN RISKS</p>
+                    <h2>主なリスク</h2>
+                </div>
+            </div>
+
+            <div class="risk-summary-grid">
+
+                {% if https_pages %}
+                <article class="risk-summary-card">
+                    <div class="risk-summary-line high"></div>
+
+                    <div class="risk-summary-main">
+                        <h3>HTTPSが使用されていません</h3>
+                        <p>
+                            通信が暗号化されていないページがあります。
+                            通信保護に関わるため、優先して対応してください。
+                        </p>
+
+                        <details class="risk-summary-detail">
+                            <summary>対象ページを表示</summary>
+                            <ul class="mini-url-list">
+                                {% for page_url in https_pages %}
+                                <li>{{ page_url }}</li>
+                                {% endfor %}
+                            </ul>
+                        </details>
+                    </div>
+
+                    <div class="risk-summary-count">
+                        <strong>{{ https_pages|length }}</strong>
+                        <span>ページ</span>
+                    </div>
+                </article>
+                {% endif %}
+
+                {% if header_pages %}
+                <article class="risk-summary-card">
+                    <div class="risk-summary-line medium"></div>
+
+                    <div class="risk-summary-main">
+                        <h3>セキュリティヘッダー不足</h3>
+                        <p>
+                            CSPやX-Content-Type-Options、Referrer-Policyなどの
+                            セキュリティヘッダーが不足しています。
+                        </p>
+
+                        <details class="risk-summary-detail">
+                            <summary>対象ページを表示</summary>
+                            <ul class="mini-url-list">
+                                {% for page_url in header_pages|unique %}
+                                <li>{{ page_url }}</li>
+                                {% endfor %}
+                            </ul>
+                        </details>
+                    </div>
+
+                    <div class="risk-summary-count">
+                        <strong>{{ header_pages|length }}</strong>
+                        <span>ページ</span>
+                    </div>
+                </article>
+                {% endif %}
+
+                {% if cookie_pages %}
+                <article class="risk-summary-card">
+                    <div class="risk-summary-line medium"></div>
+
+                    <div class="risk-summary-main">
+                        <h3>Cookie設定不備</h3>
+                        <p>
+                            HttpOnlyやSameSiteなどのCookie保護属性が不足しています。
+                            セッション保護に関わるため確認が必要です。
+                        </p>
+
+                        <details class="risk-summary-detail">
+                            <summary>対象ページを表示</summary>
+                            <ul class="mini-url-list">
+                                {% for page_url in cookie_pages %}
+                                <li>{{ page_url }}</li>
+                                {% endfor %}
+                            </ul>
+                        </details>
+                    </div>
+
+                    <div class="risk-summary-count">
+                        <strong>{{ cookie_pages|length }}</strong>
+                        <span>ページ</span>
+                    </div>
+                </article>
+                {% endif %}
+
+                {% if other_pages %}
+                <article class="risk-summary-card">
+                    <div class="risk-summary-line low"></div>
+
+                    <div class="risk-summary-main">
+                        <h3>その他のセキュリティ問題</h3>
+                        <p>
+                            上記以外にも個別の診断結果があります。
+                            詳細は下部のセキュリティ診断結果を確認してください。
+                        </p>
+                    </div>
+
+                    <div class="risk-summary-count">
+                        <strong>{{ other_pages|length }}</strong>
+                        <span>ページ</span>
+                    </div>
+                </article>
+                {% endif %}
+
+                {% if not https_pages and not header_pages and not cookie_pages and not other_pages %}
+                <div class="empty-state">
+                    重大なセキュリティ問題は検出されませんでした。
+                </div>
+                {% endif %}
+
+            </div>
+        </section>
+
+        <!-- =====================================================
+             05. RISK ANALYSIS
+             ===================================================== -->
+        <section class="panel">
+            <div class="section-heading">
+                <div>
+                    <p class="section-kicker">RISK ANALYSIS</p>
+                    <h2>リスク分析</h2>
+                </div>
+            </div>
+
+            <div class="analysis-overview">
+
+                {% if correlations %}
+                    {% set correlation_titles = correlations|map(attribute="title")|unique|list %}
+
+                    {% for title in correlation_titles %}
+                        {% for correlation in correlations if correlation.title == title %}
+                            {% if loop.first %}
+                            <div class="analysis-card">
+                                <div class="analysis-card-top">
+                                    <h3>{{ correlation.title }}</h3>
+                                    <span class="severity-badge severity-{{ correlation.severity|lower }}">
+                                        {{ correlation.severity }}
+                                    </span>
+                                </div>
+
+                                <p>{{ correlation.description }}</p>
+
+                                <details class="risk-summary-detail">
+                                    <summary>影響するページを表示</summary>
+                                    <ul class="mini-url-list">
+                                        {% for item in correlations if item.title == title %}
+                                            <li>{{ item.url }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </details>
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    {% endfor %}
+                {% endif %}
+
+                {% if attack_paths %}
+                    {% for attack_path in attack_paths %}
+                    <div class="attack-chain">
+                        <div class="attack-node">{{ attack_path.title }}</div>
+
+                        {% for step in attack_path.steps %}
+                            <span class="attack-arrow">→</span>
+                            <div class="attack-node">{{ step }}</div>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                {% endif %}
+
+                {% if "correlation" not in analysis_options
+                    and "attack_path" not in analysis_options %}
+                <div class="empty-state">
+                    複合リスク分析と攻撃経路分析は選択されていません。
+                </div>
+                {% endif %}
+            </div>
+        </section>
+
+        <!-- =====================================================
+             06. PRIORITY SUMMARY
+             ===================================================== -->
+        {% if "priority" in analysis_options %}
+            <section class="panel">
+                <div class="section-heading">
+                    <div>
+                        <p class="section-kicker">REMEDIATION</p>
+                        <h2>対応優先順位</h2>
+                    </div>
+                </div>
+
+                {% if priority_groups %}
+                    <div class="priority-summary-list">
+                        {% for priority in priority_groups[:5] %}
+                        <article class="priority-summary-row">
+                            <div class="priority-number">
+                                {{ "%02d"|format(loop.index) }}
+                            </div>
+
+                            <div>
+                                <strong>{{ priority.title }}</strong>
+                                <small>
+                                    {{ priority.priority }} · {{ priority.severity }}<br>
+                                    {{ priority.finding_count }}件のFinding · {{ priority.page_count }}ページ
+                                </small>
+                                <details>
+                                    <summary>対象URLを表示</summary>
+                                    <ul>
+                                        {% for affected_url in priority.affected_urls %}
+                                        <li class="mono small-text">{{ affected_url }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </details>
+                                <p class="small-text">推奨対応：{{ priority.recommended_action }}</p>
+                            </div>
+
+                            <div class="priority-score-mini">
+                                <span class="card-label">SCORE</span>
+                                <strong>{{ priority.priority_score }}</strong>
+                            </div>
+                        </article>
+                        {% endfor %}
+                    </div>
+
+                    {% if priority_groups|length > 5 %}
+                    <details class="detail-toggle" style="margin-top: 14px;">
+                        <summary>
+                            残り {{ priority_groups|length - 5 }} 件の優先順位を表示
+                        </summary>
+
+                        <div class="priority-list" style="margin-top: 14px;">
+                            {% for priority in priority_groups[5:] %}
+                            <div class="priority-row">
+                                <span class="priority-rank">
+                                    {{ "%02d"|format(loop.index + 5) }}
+                                </span>
+
+                                <div class="priority-main">
+                                    <div>
+                                        <h3>{{ priority.title }}</h3>
+                                        <span class="mono small-text">{{ priority.finding_count }}件のFinding · {{ priority.page_count }}ページ</span>
+                                        <details>
+                                            <summary>対象URLを表示</summary>
+                                            <ul>
+                                                {% for affected_url in priority.affected_urls %}
+                                                <li class="mono small-text">{{ affected_url }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                        </details>
+                                    </div>
+
+                                    <div class="priority-tags">
+                                        <span class="priority-tag">{{ priority.priority }}</span>
+                                        <span class="severity-badge severity-{{ priority.severity|lower }}">
+                                            {{ priority.severity }}
+                                        </span>
+                                    </div>
+
+                                    <p>{{ priority.description }}</p>
+                                </div>
+
+                                <div class="priority-score">
+                                    <span>SCORE</span>
+                                    <strong>{{ priority.priority_score }}</strong>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </details>
+                    {% endif %}
+                {% else %}
+                    <div class="empty-state">対応が必要な項目はありません。</div>
+                {% endif %}
+            </section>
+        {% endif %}
+        <!-- =====================================================
+             07. DETAILS
+             ===================================================== -->
+        <div class="detail-section">
+
+            <section class="panel risk-map-panel">
+                <div class="section-heading">
+                    <div>
+                        <p class="section-kicker">DETAIL / ATTACK SURFACE</p>
+                        <h2>Risk Map</h2>
+                    </div>
+                    <span class="section-note">観測URLごとのFinding</span>
+                </div>
+
+                {% if risk_map %}
+                <div class="risk-map-new">
+                    <p class="muted">URL間の接続関係やインターネット全体からの到達性を示す図ではありません。</p>
+
+                    <div class="map-target">
+                        <span class="map-label">TARGET</span>
+                        <strong>{{ risk_map.target_url }}</strong>
+                    </div>
+
+                    {% if risk_map.pages %}
+                    <div class="risk-pages-grid compact">
+                        {% for page in risk_map.pages %}
+                        <article class="risk-page-card severity-card-{{ page.severity|lower }}">
+                            <div class="page-card-head">
+                                <div>
+                                    <span class="map-label">
+                                        WEB PAGE {{ "%02d"|format(loop.index) }}
+                                    </span>
+                                    <strong>{{ page.url }}</strong>
+                                </div>
+
+                                <span class="severity-badge severity-{{ page.severity|lower }}">
+                                    {{ page.severity }}
+                                </span>
+                            </div>
+
+                            <div class="compact-page-findings">
+                                <strong>{{ page.findings|length }}</strong>
+                                findings detected
+                            </div>
+
+                            {% if page.findings %}
+                            <details class="page-detail" style="margin-top: 12px;">
+                                <summary>Findingの詳細を表示</summary>
+
+                                <div class="page-findings" style="margin-top: 10px;">
+                                    {% for finding in page.findings %}
+                                    <div class="map-finding">
+                                        <span class="finding-dot severity-dot-{{ finding.severity|lower }}"></span>
+                                        <div>
+                                            <strong>{{ finding.title }}</strong>
+                                            <span>{{ finding.severity }}</span>
+                                    
+                                            {% if finding.subtype %}
+                                            <small>{{ finding.subtype }}</small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </details>
+                            {% endif %}
+                        </article>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="empty-state">
+                        Risk Mapに表示できるページがありません。
+                    </div>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="empty-state">Risk Mapを表示できませんでした。</div>
+                {% endif %}
+            </section>
+
+            <!-- Discovered URLs -->
+            <section class="panel">
+                <div class="section-heading">
+                    <div>
+                        <p class="section-kicker">DETAIL / DISCOVERED SURFACE</p>
+                        <h2>発見したURL</h2>
+                    </div>
+                    <span class="section-count">
+                        {{ discovered_urls|length }} PAGES
+                    </span>
+                </div>
+
+                {% if discovered_urls %}
+                <div class="url-list">
+                    {% for discovered_url in discovered_urls %}
+                    <div class="url-row">
+                        <span class="url-index">{{ "%02d"|format(loop.index) }}</span>
+                        <span class="url-path">{{ discovered_url }}</span>
+                        <span class="url-state">ANALYZED</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">URLが見つかりませんでした。</div>
+                {% endif %}
+            </section>
+
+            <!-- Before / After -->
+            {% if comparison %}
+            <section class="panel">
+                <div class="section-heading">
+                    <div>
+                        <p class="section-kicker">DETAIL / RE-SCAN ANALYSIS</p>
+                        <h2>Before / After</h2>
+                    </div>
+                </div>
+
+                <div class="comparison-summary">
+                    {% if comparison.score_comparable %}
+                    <div class="compare-score">
+                        <span>BEFORE</span>
+                        <strong>{{ comparison.before_risk_score }}</strong>
+                        <small>/ 100 · {{ comparison.before_risk_level }}</small>
+                    </div>
+
+                    <div class="compare-arrow">→</div>
+
+                    <div class="compare-score">
+                        <span>AFTER</span>
+                        <strong>{{ comparison.after_risk_score }}</strong>
+                        <small>/ 100 · {{ comparison.after_risk_level }}</small>
+                    </div>
+
+                    <div class="delta-box">
+                        <span>SCORE DELTA</span>
+                        <strong>{{ comparison.score_delta }}</strong>
+                    </div>
+                    {% else %}
+                    <p class="muted">Risk Scoreは前後両方の診断で選択されていないため、スコア比較はありません。</p>
+                    {% endif %}
+                </div>
+
+                {% if not comparison.checks_comparable %}
+                <p class="muted">診断項目の保存内容を読み取れないため、検出範囲の一致を確認できません。Findingの差分は参考情報として確認してください。</p>
+                {% elif not comparison.checks_match %}
+                <p class="muted">前後で診断項目が異なるため、消えたFindingが修正によって解消したとは判断できません。</p>
+                <p class="muted">Before: {{ comparison.before_checks|join(', ') or 'なし' }} · After: {{ comparison.after_checks|join(', ') or 'なし' }}</p>
+                {% endif %}
+
+                <div class="comparison-grid">
+                    <div class="sub-panel">
+                        <span class="card-label">FINDINGS</span>
+                        <p>
+                            Before <strong>{{ comparison.before_count }}</strong>
+                            →
+                            After <strong>{{ comparison.after_count }}</strong>
+                        </p>
+                    </div>
+
+                    <div class="sub-panel">
+                        <span class="card-label">REMOVED</span>
+                        {% if comparison.removed %}
+                        <ul class="compact-list">
+                            {% for finding in comparison.removed %}
+                            <li>
+                                {{ finding.title }}
+                                <small>{{ finding.url }}</small>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}
+                        <p class="muted">消えたFindingはありません。</p>
+                        {% endif %}
+                    </div>
+
+                    <div class="sub-panel">
+                        <span class="card-label">ADDED</span>
+                        {% if comparison.added %}
+                        <ul class="compact-list">
+                            {% for finding in comparison.added %}
+                            <li>
+                                {{ finding.title }}
+                                <small>{{ finding.url }}</small>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}
+                        <p class="muted">新しく発生したFindingはありません。</p>
+                        {% endif %}
+                    </div>
+
+                    <div class="sub-panel">
+                        <span class="card-label">SEVERITY CHANGED</span>
+                        {% if comparison.severity_changed %}
+                        <ul class="compact-list">
+                            {% for finding in comparison.severity_changed %}
+                            <li>
+                                {{ finding.title }}
+                                <small>
+                                    {{ finding.before_severity }}
+                                    →
+                                    {{ finding.after_severity }}
+                                    · {{ finding.url }}
+                                </small>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}
+                        <p class="muted">Severityの変化はありません。</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </section>
+            {% endif %}
+
+            <!-- Full correlation -->
+            {% if "correlation" in analysis_options %}
+            <section class="panel">
+                <div class="section-heading">
+                    <div>
+                        <p class="section-kicker">DETAIL / RISK CORRELATION</p>
+                        <h2>複合リスク分析</h2>
+                    </div>
+                </div>
+
+                {% if correlations %}
+                <div class="analysis-list">
+                    {% for correlation in correlations %}
+                    <div class="analysis-card">
+                        <div class="analysis-card-top">
+                            <h3>{{ correlation.title }}</h3>
+
+                            <span class="severity-badge severity-{{ correlation.severity|lower }}">
+                                {{ correlation.severity }}
+                            </span>
+                        </div>
+
+                        <span class="mono small-text">
+                            {{ correlation.url }}
+                        </span>
+
+                        <p>{{ correlation.description }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    関連する複合リスクは検出されませんでした。
+                </div>
+                {% endif %}
+            </section>
+            {% else %}
+                <section class="panel">
+                    <div class="section-heading">
+                        <h2>複合リスク分析</h2>
+                    </div>
+                    <div class="empty-state">
+                        Correlationは今回の診断で選択されていません。
+                    </div>
+                </section>
+            {% endif %}
+            <!-- Full attack paths -->
+            {% if "attack_path" in analysis_options %}
+            <section class="panel">
+                <div class="section-heading">
+                    <div>
+                        <p class="section-kicker">DETAIL / ATTACK PATH</p>
+                        <h2>攻撃経路分析</h2>
+                    </div>
+                </div>
+
+                {% if attack_paths %}
+                <div class="analysis-list">
+                    {% for attack_path in attack_paths %}
+                    <div class="analysis-card">
+                        <div class="analysis-card-top">
+                            <h3>{{ attack_path.title }}</h3>
+
+                            <span class="severity-badge severity-{{ attack_path.severity|lower }}">
+                                {{ attack_path.severity }}
+                            </span>
+                        </div>
+
+                        <span class="mono small-text">
+                            {{ attack_path.url }}
+                        </span>
+
+                        <ol class="path-steps">
+                            {% for step in attack_path.steps %}
+                            <li>{{ step }}</li>
+                            {% endfor %}
+                        </ol>
+
+                        <p>{{ attack_path.description }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    攻撃経路は検出されませんでした。
+                </div>
+                {% endif %}
+            </section>
+
+            {% else %}
+                <section class="panel">
+                    <div class="section-heading">
+                        <h2>攻撃経路分析</h2>
+                    </div>
+                    <div class="empty-state">
+                        Attack Pathは今回の診断で選択されていません。
+                    </div>
+                </section>
+            {% endif %}
+
+            <!-- Full priority -->
+            {% if "priority" in analysis_options %}
+            <section class="panel">
+                <div class="section-heading">
+                    <div>
+                        <p class="section-kicker">DETAIL / REMEDIATION</p>
+                        <h2>対応優先順位 詳細</h2>
+                    </div>
+
+                    {% if priority_groups %}
+                    <span class="section-count">
+                        {{ priority_groups|length }} GROUPS · {{ priorities|length }} FINDINGS
+                    </span>
+                    {% endif %}
+                </div>
+
+                {% if priority_groups %}
+                <div class="priority-list">
+                    {% for priority in priority_groups %}
+                    <div class="priority-row">
+                        <span class="priority-rank">
+                            {{ "%02d"|format(loop.index) }}
+                        </span>
+
+                        <div class="priority-main">
+                            <div>
+                                <h3>{{ priority.title }}</h3>
+                                <span class="mono small-text">{{ priority.finding_count }}件のFinding · {{ priority.page_count }}ページ</span>
+                                <details>
+                                    <summary>対象URLを表示</summary>
+                                    <ul>
+                                        {% for affected_url in priority.affected_urls %}
+                                        <li class="mono small-text">{{ affected_url }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </details>
+                            </div>
+
+                            <div class="priority-tags">
+                                <span class="priority-tag">
+                                    {{ priority.priority }}
+                                </span>
+
+                                <span class="severity-badge severity-{{ priority.severity|lower }}">
+                                    {{ priority.severity }}
+                                </span>
+                            </div>
+
+                            <p>推奨対応：{{ priority.recommended_action }}</p>
+                            <details>
+                                <summary>個別Findingの詳細を表示</summary>
+                                {% for detail in priority.findings %}
+                                <article class="priority-row">
+                                    <div class="priority-main">
+                                        <strong>{{ detail.finding.title }}</strong>
+                                        <div class="mono small-text">{{ detail.url }}</div>
+                                        <div>{{ detail.severity }} · {{ detail.subtype or "subtypeなし" }} · Score {{ detail.priority_score }} · {{ detail.priority }}</div>
+                                        <p>{{ detail.finding.description }}</p>
+                                        {% if detail.evidence %}<p><strong>Evidence:</strong> {{ detail.evidence }}</p>{% endif %}
+                                        <p><strong>優先理由:</strong> {{ detail.priority_reason }}</p>
+                                        <p><strong>推奨対応:</strong> {{ detail.recommended_action }}</p>
+                                    </div>
+                                </article>
+                                {% endfor %}
+                            </details>
+                        </div>
+
+                        <div class="priority-score">
+                            <span>SCORE</span>
+                            <strong>{{ priority.priority_score }}</strong>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    対応が必要な項目はありません。
+                </div>
+                {% endif %}
+            </section>
+            {% else %}
+            <section class="panel">
+                <div class="section-heading">
+                    <h2>対応優先順位 詳細</h2>
+                </div>
+                <div class="empty-state">
+                    Remediation Priorityは今回の診断で選択されていません。
+                </div>
+            </section>
+            {% endif %}
+
+
+
+            <!-- Full findings -->
+            <section class="panel findings-panel">
+                <div class="section-heading">
+                    <div>
+                        <p class="section-kicker">DETAIL / SECURITY FINDINGS</p>
+                        <h2>セキュリティ診断結果</h2>
+                    </div>
+
+                    {% if findings %}
+                    <span class="section-count">
+                        {{ findings|length }} FINDINGS
+                    </span>
+                    {% endif %}
+                </div>
+
+                {% if findings %}
+                <div class="findings-list">
+                    {% for finding in findings %}
+                    <article class="finding-row">
+                        <div class="finding-severity-line severity-line-{{ finding.severity|lower }}"></div>
+
+                        <div class="finding-body">
+                            <div class="finding-top">
+                                <h3>{{ finding.title }}</h3>
+
+                                <span class="severity-badge severity-{{ finding.severity|lower }}">
+                                    {{ finding.severity }}
+                                </span>
+                            </div>
+
+                            <div class="finding-meta">
+                                <span>{{ finding.type }}</span>
+                            
+                                {% if finding.subtype %}
+                                <span>{{ finding.subtype }}</span>
+                                {% endif %}
+                            
+                                <span>{{ finding.url }}</span>
+                            </div>
+
+                            <p>{{ finding.description }}</p>
+
+                            {% if finding.evidence %}
+                            <details>
+                                <summary>Evidence</summary>
+                                <pre>{{ finding.evidence }}</pre>
+                            </details>
+                            {% endif %}
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    問題は検出されませんでした。
+                </div>
+                {% endif %}
+            </section>
+
+        </div>
+    </main>
+
+    <footer class="rt-footer">
+        <div class="rt-container">
+            RISKTRACE <span>SECURITY ANALYSIS SYSTEM</span>
+        </div>
+    </footer>
+
+</div>
+</body>
+</html>

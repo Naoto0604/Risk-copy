@@ -1,0 +1,394 @@
+/* ============================================================
+   RiskTrace
+   #9 Risk Map
+   ============================================================ */
+
+
+/* ============================================================
+   Risk Map Container
+   ============================================================ */
+
+.risk-map {
+    width: 100%;
+
+    margin: 20px 0 30px;
+    padding: 30px;
+
+    background: #f5f7fa;
+
+    border: 1px solid #dfe3e8;
+
+    border-radius: 12px;
+
+    box-sizing: border-box;
+}
+
+
+/* ============================================================
+   Node
+   ============================================================ */
+
+.risk-node {
+    position: relative;
+
+    width: min(700px, 90%);
+
+    margin: 0 auto;
+    padding: 16px 20px;
+
+    background: #ffffff;
+
+    border: 2px solid #d1d5db;
+
+    border-radius: 10px;
+
+    box-shadow:
+        0 2px 6px rgba(0, 0, 0, 0.08);
+
+    box-sizing: border-box;
+
+    word-break: break-word;
+}
+
+
+.risk-node small {
+    display: block;
+
+    margin-bottom: 5px;
+
+    color: #6b7280;
+
+    font-size: 10px;
+
+    font-weight: bold;
+
+    letter-spacing: 1px;
+}
+
+
+.risk-node strong {
+    display: block;
+
+    font-size: 15px;
+
+    line-height: 1.5;
+}
+
+
+/* ============================================================
+   Internet
+   ============================================================ */
+
+.source-node {
+    border-color: #64748b;
+
+    text-align: center;
+}
+
+
+.source-node strong {
+    font-size: 18px;
+}
+
+
+/* ============================================================
+   Target
+   ============================================================ */
+
+.target-node {
+    border-color: #2563eb;
+}
+
+
+/* ============================================================
+   Arrow
+   ============================================================ */
+
+.risk-arrow {
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    height: 45px;
+
+    color: #64748b;
+
+    font-size: 26px;
+
+    font-weight: bold;
+}
+
+
+/* ============================================================
+   Web Page
+   ============================================================ */
+
+.risk-page {
+    width: 100%;
+}
+
+
+.page-node {
+    border-left-width: 5px;
+}
+
+
+/* ============================================================
+   Findings
+   ============================================================ */
+
+.risk-findings {
+    width: min(650px, 82%);
+
+    margin: 12px auto 0;
+
+    padding-left: 25px;
+
+    border-left: 2px solid #cbd5e1;
+
+    box-sizing: border-box;
+}
+
+
+.finding-node {
+    width: 100%;
+
+    margin-bottom: 10px;
+
+    border-left-width: 5px;
+}
+
+
+.finding-node:last-child {
+    margin-bottom: 0;
+}
+
+
+/* ============================================================
+   Severity Badge
+   ============================================================ */
+
+.severity {
+    display: inline-block;
+
+    margin-top: 8px;
+    padding: 4px 10px;
+
+    background: #e5e7eb;
+
+    border-radius: 20px;
+
+    font-size: 11px;
+
+    font-weight: bold;
+}
+
+
+/* ============================================================
+   Severity - INFO
+   ============================================================ */
+
+.severity-info {
+    border-color: #64748b;
+}
+
+
+.severity-info .severity {
+    background: #e2e8f0;
+
+    color: #475569;
+}
+
+
+/* ============================================================
+   Severity - LOW
+   ============================================================ */
+
+.severity-low {
+    border-color: #22c55e;
+}
+
+
+.severity-low .severity {
+    background: #dcfce7;
+
+    color: #15803d;
+}
+
+
+/* ============================================================
+   Severity - MEDIUM
+   ============================================================ */
+
+.severity-medium {
+    border-color: #eab308;
+}
+
+
+.severity-medium .severity {
+    background: #fef9c3;
+
+    color: #a16207;
+}
+
+
+/* ============================================================
+   Severity - HIGH
+   ============================================================ */
+
+.severity-high {
+    border-color: #f97316;
+}
+
+
+.severity-high .severity {
+    background: #ffedd5;
+
+    color: #c2410c;
+}
+
+
+/* ============================================================
+   Severity - CRITICAL
+   ============================================================ */
+
+.severity-critical {
+    border-color: #dc2626;
+}
+
+
+.severity-critical .severity {
+    background: #fee2e2;
+
+    color: #b91c1c;
+}
+
+
+/* ============================================================
+   Correlation
+   ============================================================ */
+
+.risk-correlation {
+    width: min(700px, 90%);
+
+    margin: 0 auto;
+    padding: 20px;
+
+    background: #fff7ed;
+
+    border: 2px solid #f97316;
+
+    border-radius: 10px;
+
+    box-sizing: border-box;
+}
+
+
+.risk-correlation > small {
+    display: block;
+
+    margin-bottom: 5px;
+
+    color: #9a3412;
+
+    font-size: 10px;
+
+    font-weight: bold;
+
+    letter-spacing: 1px;
+}
+
+
+.risk-correlation > strong {
+    display: block;
+
+    margin-bottom: 15px;
+
+    font-size: 18px;
+}
+
+
+/* ============================================================
+   Correlation Item
+   ============================================================ */
+
+.correlation-item {
+    margin-top: 10px;
+
+    padding: 14px;
+
+    background: #ffffff;
+
+    border: 1px solid #fed7aa;
+
+    border-radius: 8px;
+
+    box-sizing: border-box;
+}
+
+
+.correlation-header {
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    gap: 10px;
+}
+
+
+.correlation-header strong {
+    font-size: 14px;
+}
+
+
+.correlation-item p {
+    margin: 8px 0 0;
+
+    color: #4b5563;
+
+    font-size: 13px;
+
+    line-height: 1.6;
+
+    word-break: break-word;
+}
+
+
+/* ============================================================
+   Mobile
+   ============================================================ */
+
+@media (max-width: 600px) {
+
+    .risk-map {
+        padding: 15px;
+    }
+
+
+    .risk-node {
+        width: 100%;
+    }
+
+
+    .risk-findings {
+        width: 92%;
+
+        padding-left: 15px;
+    }
+
+
+    .risk-correlation {
+        width: 100%;
+    }
+
+
+    .correlation-header {
+        align-items: flex-start;
+
+        flex-direction: column;
+    }
+
+}

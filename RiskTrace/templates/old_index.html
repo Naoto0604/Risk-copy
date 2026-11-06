@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <title>RiskTrace</title>
+</head>
+<body class="rt-page rt-dark">
+<header class="rt-nav">
+    <div class="rt-container rt-nav-inner">
+        <a class="brand" href="/">RISK<span>TRACE</span></a>
+        <div class="nav-label">WEB SECURITY / ANALYSIS</div>
+    </div>
+</header>
+
+<main>
+    <section class="hero">
+        <div class="hero-particles" aria-hidden="true"></div>
+        <div class="rt-container hero-inner">
+            <p class="eyebrow">SECURITY DIAGNOSTIC PLATFORM</p>
+            <h1>Trace the risk.<br><span>See what matters.</span></h1>
+            <p class="hero-copy">Webアプリケーションのリスクを診断し、<br>発見・関連性・対応優先度まで可視化します。</p>
+
+            <form class="scan-form" method="POST" action="/scan">
+                <label for="url">診断対象のURL</label>
+                <div class="scan-input-row">
+                    <input type="url" id="url" name="url" placeholder="https://example.com" required>
+                    <button type="submit">診断開始 <span>→</span></button>
+                </div>
+
+                <div class="scan-settings">
+                    <div class="settings-header">
+                        <span>DIAGNOSTIC SETTINGS</span>
+                        <span class="settings-line"></span>
+                    </div>
+
+                    <div class="settings-grid">
+                        <div class="setting-group">
+                            <label for="max_pages">探索ページ数</label>
+                            <div class="number-input">
+                                <input
+                                    type="number"
+                                    id="max_pages"
+                                    name="max_pages"
+                                    value="10"
+                                    min="1"
+                                    max="100"
+                                    required
+                                >
+                                <span>ページ</span>
+                            </div>
+                            <small>1〜100ページまで指定できます</small>
+                        </div>
+                        <div class="setting-group">
+                            <label for="scope">探索範囲</label>
+                            <select id="scope" name="scope">
+                                <option value="site" selected>サイト全体</option>
+                                <option value="domain">同一ドメイン</option>
+                                <option value="path">指定パス以下</option>
+                                <option value="url">指定URLのみ</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label>診断項目</label>
+
+                        <div class="check-options">
+                            <label>
+                                <input type="checkbox" name="checks" value="https" checked>
+                                HTTPS
+                            </label>
+
+                            <label>
+                                <input type="checkbox" name="checks" value="headers" checked>
+                                Security Headers
+                            </label>
+
+                            <label>
+                                <input type="checkbox" name="checks" value="cookies" checked>
+                                Cookie
+                            </label>
+
+                            <label>
+                                <input type="checkbox" name="checks" value="redirects" checked>                                Redirect
+                            </label>                           
+                            <label>
+                                <input type="checkbox" name="checks" value="ports">
+                                Webポート確認
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="setting-group">
+                        <label>分析機能</label>
+                        
+                        <div class="check-options">
+                            <label>
+                                <input type="checkbox" name="analysis" value="score" checked>
+                                Risk Score
+                            </label>
+
+                            <label>
+                                <input type="checkbox" name="analysis" value="correlation" checked>
+                                Risk Correlation
+                            </label>
+
+                            <label>
+                                <input type="checkbox" name="analysis" value="attack_path" checked>
+                                Attack Path
+                            </label>
+
+                            <label>
+                                <input type="checkbox" name="analysis" value="priority" checked>
+                                Remediation Priority
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </form>
+
+            <div class="hero-links">
+                <a href="/login">ログイン</a>
+                <a href="/about">About</a>
+                <a href="/contact">お問い合わせ</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="mint-band">
+        <div class="rt-container feature-grid">
+            <div>
+                <p class="eyebrow dark">RISKTRACE</p>
+                <h2>見つけるだけじゃない。<br>リスクのつながりまで追跡。</h2>
+            </div>
+            <p>Risk Score、Risk Map、複合リスク、攻撃経路、対応優先順位をひとつの診断結果にまとめ、問題の全体像を追えるようにします。</p>
+        </div>
+    </section>
+
+    <section class="dark-feature">
+        <div class="rt-container feature-grid three">
+            <article class="feature-item"><span>01</span><h3>RISK SCORE</h3><p>診断結果を100点スコアで把握。</p></article>
+            <article class="feature-item"><span>02</span><h3>RISK MAP</h3><p>TargetからFindingまでの関係を可視化。</p></article>
+            <article class="feature-item"><span>03</span><h3>PRIORITY</h3><p>対応すべき項目を優先順位で整理。</p></article>
+        </div>
+    </section>
+
+    <section class="ai-band" aria-hidden="true">
+        <div>RT</div><div>01</div><div>RT</div><div>02</div><div>RT</div><div>03</div><div>RT</div><div>04</div>
+    </section>
+</main>
+</body>
+</html>

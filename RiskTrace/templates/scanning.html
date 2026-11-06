@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <title>RiskTrace - Scanning</title>
+</head>
+<body class="rt-page rt-dark scanning-page">
+<header class="rt-nav">
+    <div class="rt-container rt-nav-inner">
+        <a class="brand" href="/">RISK<span>TRACE</span></a>
+        <div class="nav-label">LIVE SCAN</div>
+    </div>
+</header>
+<main class="scan-screen">
+    <div class="scan-orbit" aria-hidden="true"></div>
+    <div class="rt-container scan-center">
+        <p class="eyebrow">SECURITY SCAN / {{ scan_id }}</p>
+        <h1>診断しています<span class="pulse">.</span><span class="pulse delay">.</span><span class="pulse delay2">.</span></h1>
+        <div class="scan-status-card">
+            <div><span class="meta-label">TARGET</span><strong class="mono">{{ url }}</strong></div>
+            <div><span class="meta-label">PROTOCOL</span><strong>{{ protocol }}</strong></div>
+            <div><span class="meta-label">STATUS</span><strong id="status">{{ status }}</strong></div>
+        </div>
+        <p class="scan-message">サイトをクロールし、リスクとFindingを分析しています。</p>
+
+        <div id="scan-failure" role="alert" hidden
+            style="margin-top: 24px; padding: 20px; background: #3b2025; color: #fff; border-radius: 12px;">
+            <h2>診断に失敗しました</h2>
+            <p id="scan-failure-message">
+                診断を完了できませんでした。
+            </p>
+            <a href="/" style="color: #fff; text-decoration: underline;">
+                トップページへ戻る
+            </a>
+        </div>
+    </div>
+</main>
+<script>
+    const scanId = {{ scan_id | tojson }};
+    const compareScanId = {{ compare_scan_id | default('', true) | tojson }};
+    
+    let consecutiveErrors = 0;
+    let redirected = false;
+    
+    function showFailure(message, status = "FAILED") {
+        document.getElementById("status").textContent = status;
+    
+        const failureBox = document.getElementById("scan-failure");
+        const failureMessage = document.getElementById("scan-failure-message");
+    
+        failureMessage.textContent = message;
+        failureBox.hidden = false;
+    
+        document.querySelector(".scan-message").textContent =
+            "診断を完了できませんでした。";
+    
+        document.querySelector("h1").textContent = "診断に失敗しました";
+    }
+    
+    async function checkStatus() {
+        if (redirected) return;
+    
+        try {
+            const response = await fetch(`/status/${encodeURIComponent(scanId)}`);
+    
+            if (!response.ok) {
+                throw new Error(`ステータス取得に失敗しました (HTTP ${response.status})`);
+            }
+    
+            const data = await response.json();
+            consecutiveErrors = 0;
+    
+            document.getElementById("status").textContent =
+                data.status || "UNKNOWN";
+    
+            if (data.status === "COMPLETED") {
+                redirected = true;
+    
+                let resultUrl = `/result/${encodeURIComponent(scanId)}`;
+    
+                if (compareScanId) {
+                    resultUrl +=
+                        `?compare_scan_id=${encodeURIComponent(compareScanId)}`;
+                }
+    
+                window.location.href = resultUrl;
+                return;
+            }
+    
+            if (data.status === "FAILED") {
+                showFailure(
+                    data.error_message ||
+                    data.message ||
+                    "診断処理中にエラーが発生しました。ログを確認してください。"
+                );
+                return;
+            }
+    
+            setTimeout(checkStatus, 1000);
+    
+        } catch (error) {
+            console.error("診断ステータスの取得に失敗:", error);
+            consecutiveErrors++;
+    
+            if (consecutiveErrors >= 5) {
+                showFailure(
+                    "診断状況を取得できませんでした。サーバーが起動しているか確認し、トップページから再試行してください。",
+                    "取得失敗"
+                );
+                return;
+            }
+    
+            setTimeout(checkStatus, 2000);
+        }
+    }   
+
+
+    
+    checkStatus();
+</script>
+</body>
+</html>

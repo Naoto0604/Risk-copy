@@ -1,0 +1,484 @@
+/* =========================================================
+   #12 Report
+   診断レポート画面の基本デザイン
+   ========================================================= */
+
+@page {
+    size: A4;
+    margin: 16mm 14mm;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: #eef2f7;
+    color: #1f2937;
+    font-family: "Yu Gothic", "Meiryo", sans-serif;
+    line-height: 1.65;
+}
+
+/* =========================================================
+   画面上部の操作ボタン
+   ========================================================= */
+
+.toolbar {
+    max-width: 1000px;
+    margin: 24px auto 12px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 0 16px;
+}
+
+.button {
+    display: inline-block;
+    border: 0;
+    border-radius: 8px;
+    background: #174ea6;
+    color: #fff;
+    padding: 10px 16px;
+    font: inherit;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.button.secondary {
+    background: #475569;
+}
+
+/* =========================================================
+   レポート本体
+   ========================================================= */
+
+.report {
+    max-width: 1000px;
+    margin: 0 auto 40px;
+    padding: 44px 52px;
+    background: #fff;
+    box-shadow: 0 8px 32px #0f172a14;
+}
+
+/* タイトル部分 */
+
+.report-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+    padding-bottom: 26px;
+    border-bottom: 3px solid #174ea6;
+}
+
+.eyebrow {
+    margin: 0;
+    color: #174ea6;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .14em;
+}
+
+h1 {
+    margin: 6px 0;
+    font-size: 30px;
+}
+
+h2 {
+    margin: 0 0 18px;
+    padding-bottom: 9px;
+    border-bottom: 1px solid #dbe3ee;
+    font-size: 20px;
+}
+
+h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+p {
+    margin: 8px 0;
+    overflow-wrap: anywhere;
+}
+
+.muted,
+.meta {
+    color: #64748b;
+    font-size: 13px;
+}
+
+/* 診断ステータス */
+
+.report-status {
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: #dcfce7;
+    color: #166534;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+/* =========================================================
+   各セクション・診断概要
+   ========================================================= */
+
+.section {
+    margin-top: 30px;
+    break-inside: avoid-page;
+}
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 0;
+}
+
+.summary-grid > div {
+    min-width: 0;
+    padding: 14px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+}
+
+dt {
+    color: #64748b;
+    font-size: 12px;
+}
+
+dd {
+    margin: 4px 0 0;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.scan-id {
+    font-size: 12px;
+}
+
+.url {
+    overflow-wrap: anywhere;
+}
+
+/* =========================================================
+   リスクスコア
+   ========================================================= */
+
+.risk-summary {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 20px;
+    border: 1px solid #dbe3ee;
+    border-radius: 12px;
+}
+
+.score {
+    min-width: 140px;
+    display: grid;
+    grid-template-columns: auto auto;
+    align-items: baseline;
+}
+
+.score-number {
+    font-size: 48px;
+    line-height: 1.1;
+    font-weight: 800;
+    color: #174ea6;
+}
+
+.score-max {
+    color: #64748b;
+}
+
+.score-label {
+    grid-column: 1 / -1;
+    color: #64748b;
+    font-size: 12px;
+}
+
+/* =========================================================
+   リスクレベル・Severityのラベル
+   ========================================================= */
+
+.level,
+.severity {
+    display: inline-block;
+    border-radius: 999px;
+    padding: 3px 9px;
+    font-size: 11px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.level-low,
+.severity-info {
+    background: #e2e8f0;
+    color: #334155;
+}
+
+.level-medium,
+.severity-medium {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.level-high,
+.severity-high {
+    background: #ffedd5;
+    color: #9a3412;
+}
+
+.level-critical,
+.severity-critical {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.severity-low {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.count {
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 400;
+}
+
+/* =========================================================
+   URL一覧
+   ========================================================= */
+
+.url-list {
+    padding-left: 22px;
+}
+
+.url-list li {
+    margin: 5px 0;
+    overflow-wrap: anywhere;
+}
+
+/* =========================================================
+   Finding・Correlation・Attack Pathのカード
+   ========================================================= */
+
+.item-card {
+    margin: 12px 0;
+    padding: 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 9px;
+    break-inside: avoid;
+}
+
+.item-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.item-heading h3 {
+    overflow-wrap: anywhere;
+}
+
+.recommendation {
+    margin-top: 12px;
+    padding: 10px 12px;
+    background: #eff6ff;
+    border-left: 3px solid #3b82f6;
+}
+
+.steps {
+    padding-left: 24px;
+}
+
+.steps li {
+    padding: 3px 0;
+}
+
+/* =========================================================
+   Priority（対応優先順位）の表
+   ========================================================= */
+
+.table-wrap {
+    overflow-wrap: anywhere;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+th,
+td {
+    padding: 9px 8px;
+    border: 1px solid #dbe3ee;
+    text-align: left;
+    vertical-align: top;
+}
+
+th {
+    background: #f1f5f9;
+}
+
+/* =========================================================
+   Risk Map（リスクマップ）
+   ========================================================= */
+
+.map-flow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.map-node {
+    width: 100%;
+    padding: 14px 18px;
+    border: 1px solid #cbd5e1;
+    border-left: 5px solid #94a3b8;
+    border-radius: 8px;
+    overflow-wrap: anywhere;
+}
+
+.map-node.target {
+    border-left-color: #174ea6;
+    background: #eff6ff;
+    font-weight: 700;
+}
+
+.map-node.source {
+    width: auto;
+    min-width: 180px;
+    text-align: center;
+    background: #f8fafc;
+    font-weight: 700;
+}
+
+.map-node ul {
+    margin-bottom: 0;
+}
+
+.map-arrow {
+    padding: 5px;
+    color: #64748b;
+}
+
+/* Severityに応じてRisk Mapの左側の色を変更 */
+
+.severity-border-low {
+    border-left-color: #16a34a;
+}
+
+.severity-border-medium {
+    border-left-color: #d97706;
+}
+
+.severity-border-high {
+    border-left-color: #ea580c;
+}
+
+.severity-border-critical {
+    border-left-color: #dc2626;
+}
+
+.severity-border-info {
+    border-left-color: #64748b;
+}
+
+/* =========================================================
+   改善推奨・注意書き・フッター
+   ========================================================= */
+
+.recommendation-list li {
+    margin: 10px 0;
+}
+
+.disclaimer {
+    margin-top: 18px;
+    padding: 12px;
+    background: #f8fafc;
+    color: #64748b;
+    font-size: 11px;
+}
+
+.empty {
+    color: #64748b;
+}
+
+footer {
+    margin-top: 36px;
+    padding-top: 12px;
+    border-top: 1px solid #e2e8f0;
+    color: #64748b;
+    font-size: 11px;
+    text-align: right;
+}
+
+/* =========================================================
+   スマートフォンなど画面幅が狭い場合の調整
+   ========================================================= */
+
+@media (max-width: 650px) {
+    .report {
+        padding: 24px 18px;
+    }
+
+    .report-header {
+        flex-direction: column;
+    }
+
+    .summary-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .risk-summary {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
+
+/* =========================================================
+   印刷・PDF保存時のデザイン
+   ========================================================= */
+
+@media print {
+    body {
+        background: #fff;
+        font-size: 10pt;
+    }
+
+    /* 印刷時は操作ボタンを非表示 */
+    .no-print {
+        display: none !important;
+    }
+
+    /* 印刷時は画面用の余白や影を取り除く */
+    .report {
+        max-width: none;
+        margin: 0;
+        padding: 0;
+        box-shadow: none;
+    }
+
+    /* カードや概要欄がページ途中で分割されにくくする */
+    .section,
+    .item-card,
+    .summary-grid > div {
+        break-inside: avoid;
+    }
+
+    a {
+        color: inherit;
+        text-decoration: none;
+    }
+
+    /* 背景色やラベル色を印刷でも反映 */
+    * {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}
