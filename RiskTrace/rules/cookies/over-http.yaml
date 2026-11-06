@@ -1,0 +1,22 @@
+- id: cookies.over-http
+  title: http で Cookie が設定されています
+  severity: LOW
+  confidence: high
+  requires:
+    - proof
+    - consent
+  collectors:
+    - http_cookies
+  when:
+    obs:
+      collector: http_cookies
+      path: secure_transport
+      op: eq
+      value: false
+  message: 最終応答が http で、Cookie が平文で配信されています。
+  why: 平文区間では Cookie がそのまま観測され得ます。Secure を付けていても、この応答自体は保護されません。
+  fix: https へ統一し、http からのリダイレクトを整えます。
+  verify: 最終応答の scheme が https であることを確認します。
+  tags:
+    - cookie
+    - transport

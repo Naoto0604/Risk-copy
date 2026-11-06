@@ -1,0 +1,32 @@
+- id: ports.dev-server-open
+  title: 開発用サーバーのポートが開いています
+  severity: LOW
+  confidence: low
+  requires:
+    - proof
+    - consent
+  collectors:
+    - ports
+  when:
+    any:
+      - obs:
+          collector: ports
+          path: open
+          op: contains
+          value: 3000
+      - obs:
+          collector: ports
+          path: open
+          op: contains
+          value: 5000
+      - obs:
+          collector: ports
+          path: open
+          op: contains
+          value: 8000
+  message: 3000 / 5000 / 8000 のいずれかが開いています。
+  why: 開発用のサーバーが本番公開されていると、デバッグ機能や緩い設定がそのまま出ていることがあります。
+  fix: 意図した公開か確認し、不要なら止めます。
+  verify: そのポートで動いているサービスと、本番で必要なものかを確認します。
+  tags:
+    - network

@@ -1,0 +1,22 @@
+- id: tls.expiring-soon
+  title: 証明書の有効期限が近づいています
+  severity: MEDIUM
+  confidence: medium
+  requires:
+    - proof
+    - consent
+  collectors:
+    - tls
+  when:
+    obs:
+      collector: tls
+      path: certificate
+      key: days_until_expiry
+      op: lt
+      value: 21
+  message: 証明書の残日数が 21 日未満です。
+  why: 更新運用が止まっている可能性があります。自動更新の失敗は期限当日まで気付かれないことがあります。
+  fix: 更新し、自動更新があるならその成否も確認します。
+  verify: notAfter が更新され、残日数が戻っていることを確認します。
+  tags:
+    - tls

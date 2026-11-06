@@ -1,0 +1,23 @@
+- id: tls.legacy-protocol
+  title: 旧い TLS バージョンで接続できました
+  severity: MEDIUM
+  confidence: high
+  requires:
+    - proof
+    - consent
+  collectors:
+    - tls
+  when:
+    obs:
+      collector: tls
+      path: protocol
+      op: in
+      value:
+        - TLSv1
+        - TLSv1.1
+  message: ネゴシエートされた TLS バージョンが 1.0 か 1.1 です。
+  why: TLS 1.0/1.1 は現行の推奨から外れています。対応しているのは交渉の結果であり、上位が使えない構成だという意味でもあります。
+  fix: TLS 1.2 以上のみを許可するようサーバー設定を変えます。
+  verify: 再診断で protocol が TLSv1.2 以上になることを確認します。
+  tags:
+    - tls

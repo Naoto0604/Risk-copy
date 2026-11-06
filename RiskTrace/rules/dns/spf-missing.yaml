@@ -1,0 +1,22 @@
+- id: dns.spf-missing
+  title: SPF レコードがありません
+  severity: MEDIUM
+  confidence: medium
+  requires:
+    - proof
+    - consent
+  collectors:
+    - dns
+  when:
+    obs:
+      collector: dns
+      path: spf
+      key: present
+      op: eq
+      value: false
+  message: 対象ドメインに SPF レコードが見つかりません。
+  why: SPF が無いと、そのドメインを騙ったメールの送信元検証ができません。なりすましの抑止が効きません。
+  fix: 送信に使うサーバーだけを列挙した SPF を設定し、末尾を -all にします。
+  verify: TXT に v=spf1 のレコードが1件だけ存在することを確認します。
+  tags:
+    - mail

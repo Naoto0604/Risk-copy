@@ -1,0 +1,22 @@
+- id: tls.expired
+  title: 証明書の有効期限が切れています
+  severity: HIGH
+  confidence: high
+  requires:
+    - proof
+    - consent
+  collectors:
+    - tls
+  when:
+    obs:
+      collector: tls
+      path: certificate
+      key: days_until_expiry
+      op: lt
+      value: 0
+  message: 証明書の notAfter を過ぎています。
+  why: 期限切れの証明書はブラウザで警告になります。利用者は警告を無視する習慣が付き、偽証明書との区別が緩みます。
+  fix: 証明書を更新します。
+  verify: 新しい notAfter が十分先であることを確認します。
+  tags:
+    - tls

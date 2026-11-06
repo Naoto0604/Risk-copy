@@ -1,0 +1,21 @@
+- id: explore.env-exposed
+  title: .env が取得できます
+  severity: MEDIUM
+  confidence: low
+  requires:
+    - proof
+    - consent
+  collectors:
+    - explore_discover
+  when:
+    obs:
+      collector: explore_discover
+      path: found_paths
+      op: contains
+      value: /.env
+  message: /.env が 200 で返っています。
+  why: 設定ファイルが配信されています。中身に秘密値が入っていることが多く、値は既に観測の prefix に載っています。
+  fix: 配信不要なら除外します。配信するなら秘密値が入っていないか確認します。
+  verify: /.env の内容に秘密値が含まれるか確認します。
+  tags:
+    - exposure

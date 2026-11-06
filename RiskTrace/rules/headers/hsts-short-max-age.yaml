@@ -1,0 +1,22 @@
+- id: headers.hsts-short-max-age
+  title: HSTS の max-age が短すぎます
+  severity: LOW
+  confidence: low
+  requires:
+    - proof
+    - consent
+  collectors:
+    - http_headers
+  when:
+    obs:
+      collector: http_headers
+      path: headers
+      key: strict-transport-security
+      op: regex
+      value: "max-age=[0-9]{1,4}\\b"
+  message: HSTS の max-age が 4 桁以下です。
+  why: max-age が短いと、期限切れのたびに平文へ落ちる機会が戻ります。ブラウザの挙動は実装依存なので断定はできません。
+  fix: max-age を 15552000（180日）以上にします。
+  verify: strict-transport-security の max-age の値を確認します。
+  tags:
+    - transport

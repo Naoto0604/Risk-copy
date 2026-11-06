@@ -1,0 +1,21 @@
+- id: headers.transport-downgraded
+  title: https から http へ降格するリダイレクトがあります
+  severity: MEDIUM
+  confidence: high
+  requires:
+    - proof
+    - consent
+  collectors:
+    - http_headers
+  when:
+    obs:
+      collector: http_headers
+      path: downgraded
+      op: eq
+      value: true
+  message: 最終応答に至るまでに https から http へ落ちています。
+  why: 平文区間が生じるため、その区間だけ書き換えの余地があります。
+  fix: リダイレクト先を https に揃えます。
+  verify: 追跡した全ホップの scheme が https であることを確認します。
+  tags:
+    - transport

@@ -1,0 +1,22 @@
+- id: dns.dmarc-none
+  title: DMARC のポリシーが none です
+  severity: LOW
+  confidence: medium
+  requires:
+    - proof
+    - consent
+  collectors:
+    - dns
+  when:
+    obs:
+      collector: dns
+      path: dmarc
+      key: policy
+      op: eq
+      value: none
+  message: DMARC の p= が none です。
+  why: 検証に失敗しても隔離も拒否もしません。監視目的としては正しい状態ですが、なりすましの抑止はまだ効いていません。
+  fix: 報告を確認したうえで p=quarantine、次に p=reject へ進めます。
+  verify: 報告に正規の送信元が含まれていることを確認してから引き上げます。
+  tags:
+    - mail

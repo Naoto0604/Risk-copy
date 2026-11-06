@@ -1,0 +1,21 @@
+- id: headers.x-content-type-options-missing
+  title: X-Content-Type-Options が付いていません
+  severity: LOW
+  confidence: high
+  requires:
+    - proof
+    - consent
+  collectors:
+    - http_headers
+  when:
+    obs:
+      collector: http_headers
+      path: headers
+      key: x-content-type-options
+      op: absent
+  message: X-Content-Type-Options がありません。
+  why: ブラウザが Content-Type を無視して中身から種類を推測する余地が残ります。画像として配信された HTML が実行される型の事故につながります。
+  fix: "全応答に X-Content-Type-Options: nosniff を付けます。"
+  verify: "応答ヘッダーに x-content-type-options: nosniff が含まれることを確認します。"
+  tags:
+    - browser

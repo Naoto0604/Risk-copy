@@ -1,0 +1,32 @@
+- id: ports.database-open
+  title: データベースの既定ポートが開いています
+  severity: MEDIUM
+  confidence: low
+  requires:
+    - proof
+    - consent
+  collectors:
+    - ports
+  when:
+    any:
+      - obs:
+          collector: ports
+          path: open
+          op: contains
+          value: 3306
+      - obs:
+          collector: ports
+          path: open
+          op: contains
+          value: 5432
+      - obs:
+          collector: ports
+          path: open
+          op: contains
+          value: 1433
+  message: MySQL / PostgreSQL / SQL Server の既定ポートのいずれかが開いています。
+  why: データベースが直接公開されていると、認証情報の総当たりや既知の脆弱性の対象になります。
+  fix: 外部公開が不要なら止めるか、接続元を限定します。
+  verify: 外部からの接続可否と、認証方式を確認します。
+  tags:
+    - network

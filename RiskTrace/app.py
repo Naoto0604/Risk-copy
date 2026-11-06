@@ -4,7 +4,7 @@ import uuid
 import json
 import requests
 import threading
-from scanner.crawler import crawl
+from scanner.crawler import crawl, normalize_url
 from scanner.checks import run_checks
 from analyzer.scoring import calculate_risk_score, get_risk_level
 from analyzer.correlation import correlate_findings
@@ -463,15 +463,20 @@ def execute_scan(scan_id, url, protocol,enabled_checks=None,analysis_options=Non
         # ==============================
 
         discovered_urls = crawl(
-            url,
-            max_pages=10
-        )
+           url,
+           max_pages=10
+       )
+       # 開始URLは必ず検査する。クロールが空を返しても（開始URLが
+       # リダイレクトする、全取得が失敗する等）検査が空回りしないようにする。
+        start_url = normalize_url(url) or url
+        if start_url not in discovered_urls:
+           discovered_urls = set(discovered_urls) | {start_url}        
         # ==============================
         # #4 Security Check
         # ==============================
 
         findings = []
-
+        checked_count = 0
         # Webポート確認
         if enabled_checks and "ports" in enabled_checks:
             try:
@@ -502,7 +507,7 @@ def execute_scan(scan_id, url, protocol,enabled_checks=None,analysis_options=Non
                         enabled_checks=enabled_checks
                     )
                 )
-
+                checked_count += 1
             except requests.RequestException as e:
                 # ----------------------------------------------------
                 # 【#13 A-2】

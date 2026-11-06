@@ -1,0 +1,21 @@
+- id: tls.verification-failed
+  title: 証明書の検証に失敗しました
+  severity: HIGH
+  confidence: high
+  requires:
+    - proof
+    - consent
+  collectors:
+    - tls
+  when:
+    obs:
+      collector: tls
+      path: verification
+      op: eq
+      value: FAILED
+  message: 既定のトラストストアで証明書を検証できませんでした。
+  why: 検証できない状態は、期限切れ・ホスト名不一致・未知の CA のいずれかです。どれも中間者と区別が付きません。
+  fix: 原因を特定して証明書を差し替えます。期限切れなら更新、未知の CA ならチェーンを整えます。
+  verify: 検証ありの接続でハンドシェイクが通ることを確認します。
+  tags:
+    - tls

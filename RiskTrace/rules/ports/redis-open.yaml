@@ -1,0 +1,21 @@
+- id: ports.redis-open
+  title: Redis の既定ポートが開いています
+  severity: MEDIUM
+  confidence: low
+  requires:
+    - proof
+    - consent
+  collectors:
+    - ports
+  when:
+    obs:
+      collector: ports
+      path: open
+      op: contains
+      value: 6379
+  message: 6379 で TCP 接続できました。
+  why: Redis は既定で認証が無いことがあります。公開されていると読み書きの余地が生まれます。
+  fix: 外部公開を止めるか、認証と bind 先を制限します。
+  verify: 認証の有無と bind 設定を確認します。
+  tags:
+    - network

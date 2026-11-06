@@ -1,0 +1,22 @@
+- id: dns.spf-multiple
+  title: SPF レコードが複数あります
+  severity: MEDIUM
+  confidence: high
+  requires:
+    - proof
+    - consent
+  collectors:
+    - dns
+  when:
+    obs:
+      collector: dns
+      path: spf
+      key: multiple
+      op: eq
+      value: true
+  message: v=spf1 の TXT レコードが2件以上あります。
+  why: SPF は1件であることが前提です。複数あると受信側の解釈が定まらず、検証が PermError になります。
+  fix: 1件に統合し、include で必要な送信元をまとめます。
+  verify: v=spf1 のレコードが1件だけになることを確認します。
+  tags:
+    - mail

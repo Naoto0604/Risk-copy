@@ -1,0 +1,22 @@
+- id: cookies.httponly-missing
+  title: HttpOnly 属性の無い Cookie があります
+  severity: MEDIUM
+  confidence: medium
+  requires:
+    - proof
+    - consent
+  collectors:
+    - http_cookies
+  when:
+    obs:
+      collector: http_cookies
+      path: cookies
+      key: attributes.httponly
+      op: contains
+      value: false
+  message: HttpOnly の無い Cookie が設定されています。
+  why: HttpOnly が無いと、スクリプトから document.cookie で読めます。XSS が成立したときの影響が広がります。
+  fix: スクリプトから読む必要の無い Cookie に HttpOnly を付けます。
+  verify: Set-Cookie に HttpOnly が付いていることを確認します。
+  tags:
+    - cookie

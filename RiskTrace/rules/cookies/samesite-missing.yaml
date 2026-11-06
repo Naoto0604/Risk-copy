@@ -1,0 +1,22 @@
+- id: cookies.samesite-missing
+  title: SameSite 属性の無い Cookie があります
+  severity: LOW
+  confidence: medium
+  requires:
+    - proof
+    - consent
+  collectors:
+    - http_cookies
+  when:
+    obs:
+      collector: http_cookies
+      path: cookies
+      key: samesite
+      op: contains
+      value: null
+  message: SameSite が明示されていない Cookie が設定されています。
+  why: 未指定の扱いはブラウザによって差があり、Lax 相当に倒れることが多いものの保証はありません。クロスサイト送信の可否が曖昧になります。
+  fix: 用途に応じて SameSite=Lax か Strict を明示します。クロスサイトで送る必要がある場合だけ None を使い、Secure と併用します。
+  verify: Set-Cookie に SameSite が明示されていることを確認します。
+  tags:
+    - cookie

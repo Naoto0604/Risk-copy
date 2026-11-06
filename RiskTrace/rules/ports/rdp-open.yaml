@@ -1,0 +1,21 @@
+- id: ports.rdp-open
+  title: RDP の既定ポートが開いています
+  severity: MEDIUM
+  confidence: low
+  requires:
+    - proof
+    - consent
+  collectors:
+    - ports
+  when:
+    obs:
+      collector: ports
+      path: open
+      op: contains
+      value: 3389
+  message: 3389 で TCP 接続できました。
+  why: RDP は認証前の攻撃面が広く、総当たりの対象になりやすいポートです。
+  fix: 接続元を限定するか、VPN 経由にします。多要素認証も検討します。
+  verify: 外部からの接続可否と認証方式を確認します。
+  tags:
+    - network

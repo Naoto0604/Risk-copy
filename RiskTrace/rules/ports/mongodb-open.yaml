@@ -1,0 +1,21 @@
+- id: ports.mongodb-open
+  title: MongoDB の既定ポートが開いています
+  severity: MEDIUM
+  confidence: low
+  requires:
+    - proof
+    - consent
+  collectors:
+    - ports
+  when:
+    obs:
+      collector: ports
+      path: open
+      op: contains
+      value: 27017
+  message: 27017 で TCP 接続できました。
+  why: 既定ポートのまま公開されていると、狙いが付けられます。認証の有無や接続元制限は、接続だけでは分かりません。
+  fix: 外部に出す必要が無ければ制限し、出すなら認証と接続元制限を確認します。
+  verify: 外部から接続できることと、認証が要求されることを確認します。
+  tags:
+    - network

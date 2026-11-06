@@ -91,12 +91,24 @@ def crawl(start_url, max_pages=100):
             continue
         try:
             response = requests.get(current, timeout=5, allow_redirects=False)
-            if 300 <= response.status_code < 400:
-                continue
-            response.raise_for_status()
         except (requests.RequestException, ValueError) as exc:
             print(f"アクセス失敗: {current}\n理由: {exc}")
             continue
+
+        # 3xx は巡回済みに数えない。リダイレクトは追跡しないので、
+        # ここで visited に入れると「到達していない URL」が結果に混ざる。
+        # リダイレクト先の scope 検証と追跡は Phase 2 の Scheduler で扱う。
+        if 300 <= response.status_code < 400:
+            location = response.headers.get("Location") or "(Location なし)"
+            print(f"リダイレクトのため未巡回: {current} -> {location}")
+            continue
+
+        try:
+            response.raise_for_status()
+        except requests.RequestException as exc:
+            print(f"アクセス失敗: {current}\n理由: {exc}")
+            continue
+
         visited.add(current)
         if "html" not in response.headers.get("Content-Type", "text/html").lower():
             continue

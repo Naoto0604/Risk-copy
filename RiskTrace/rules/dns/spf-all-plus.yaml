@@ -1,0 +1,22 @@
+- id: dns.spf-all-plus
+  title: SPF の末尾が +all です
+  severity: LOW
+  confidence: low
+  requires:
+    - proof
+    - consent
+  collectors:
+    - dns
+  when:
+    obs:
+      collector: dns
+      path: spf
+      key: policy
+      op: eq
+      value: +all
+  message: SPF の all 修飾子が + です。
+  why: +all は全送信元を許可するため、SPF を通らないサーバーからの送信も通ります。実際の効果は受信側の扱いにもよります。
+  fix: 送信元を洗い出したうえで -all か ~all にします。
+  verify: 送信に使うサーバー以外から送っても SPF で落ちることを確認します。
+  tags:
+    - mail

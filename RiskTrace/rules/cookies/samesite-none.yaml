@@ -1,0 +1,22 @@
+- id: cookies.samesite-none
+  title: SameSite=None の Cookie があります
+  severity: MEDIUM
+  confidence: low
+  requires:
+    - proof
+    - consent
+  collectors:
+    - http_cookies
+  when:
+    obs:
+      collector: http_cookies
+      path: cookies
+      key: samesite
+      op: contains
+      value: none
+  message: SameSite=None が指定されています。
+  why: クロスサイトのリクエストでも送られるため、CSRF 対策としては弱くなります。None が必要かどうかは構成次第で、実害の有無は断定できません。
+  fix: クロスサイトで本当に必要か確認し、不要なら Lax か Strict にします。必要なら Secure と併用します。
+  verify: 該当 Cookie がクロスサイトで送られる必要があるかを確認します。
+  tags:
+    - cookie

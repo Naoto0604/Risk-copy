@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>診断中</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 2rem auto; max-width: 40rem; padding: 0 1rem; }
+  .box { background: #f4f4f4; border-left: 4px solid #999; padding: .8rem 1rem; }
+  .error { background: #fde2e1; border-left-color: #c0392b; }
+  .muted { color: #666; font-size: .85rem; }
+</style>
+</head>
+<body>
+<h1>診断中</h1>
+<p>対象: {{ target }}</p>
+
+<div class="box" id="state">実行しています。そのままお待ちください。</div>
+
+<p class="muted">ページを閉じても診断は続きます。完了後に結果ページへ移動します。</p>
+
+<p><a href="/v2/">別の診断を開始</a></p>
+
+<script>
+(function () {
+  var scanId = {{ scan_id | tojson }};
+  var box = document.getElementById("state");
+
+  function poll() {
+    fetch("/v2/status/" + encodeURIComponent(scanId))
+      .then(function (response) { return response.json(); })
+      .then(function (data) {
+        if (data.status === "COMPLETED") {
+          window.location = "/v2/report/" + encodeURIComponent(scanId);
+          return;
+        }
+        if (data.status === "FAILED") {
+          box.className = "box error";
+          box.textContent = "診断を完了できませんでした: " + (data.error || "理由不明");
+          return;
+        }
+        setTimeout(poll, 1000);
+      })
+      .catch(function () { setTimeout(poll, 2000); });
+  }
+
+  setTimeout(poll, 800);
+})();
+</script>
+</body>
+</html>

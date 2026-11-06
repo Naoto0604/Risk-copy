@@ -1,0 +1,21 @@
+- id: explore.admin-gated
+  title: 管理系のパスが存在します（保護されています）
+  severity: LOW
+  confidence: low
+  requires:
+    - proof
+    - consent
+  collectors:
+    - explore_discover
+  when:
+    obs:
+      collector: explore_discover
+      path: gated_paths
+      op: contains
+      value: /admin
+  message: /admin が 401 か 403 を返しています。
+  why: 認証は効いている可能性がありますが、存在自体は分かります。認証方式の妥当性までは見ていません。
+  fix: 管理画面の認証方式と公開範囲を確認します。
+  verify: 管理画面の認証方式を確認します。
+  tags:
+    - exposure

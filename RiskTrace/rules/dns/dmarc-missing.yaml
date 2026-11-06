@@ -1,0 +1,22 @@
+- id: dns.dmarc-missing
+  title: DMARC レコードがありません
+  severity: MEDIUM
+  confidence: medium
+  requires:
+    - proof
+    - consent
+  collectors:
+    - dns
+  when:
+    obs:
+      collector: dns
+      path: dmarc
+      key: present
+      op: eq
+      value: false
+  message: _dmarc に DMARC レコードが見つかりません。
+  why: DMARC が無いと、SPF や DKIM が失敗したときの扱いを指定できません。なりすましメールの扱いが受信側任せになります。
+  fix: v=DMARC1 のレコードを設定し、まずは p=none で報告を集めます。
+  verify: _dmarc の TXT に v=DMARC1 が存在することを確認します。
+  tags:
+    - mail

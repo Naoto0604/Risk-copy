@@ -1,0 +1,21 @@
+- id: explore.wp-admin-reachable
+  title: WordPress の管理画面に到達できます
+  severity: LOW
+  confidence: low
+  requires:
+    - proof
+    - consent
+  collectors:
+    - explore_discover
+  when:
+    obs:
+      collector: explore_discover
+      path: found_paths
+      op: contains
+      value: /wp-admin/
+  message: /wp-admin/ が 200 で返っています。
+  why: WordPress を使っている可能性があり、プラグインや既知の攻撃面が増えます。到達できることと認証の有無は別です。
+  fix: 管理画面の公開範囲と認証を確認します。不要なら IP 制限などを検討します。
+  verify: 管理画面の認証と公開範囲を確認します。
+  tags:
+    - exposure

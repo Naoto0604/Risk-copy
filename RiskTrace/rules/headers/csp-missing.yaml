@@ -1,0 +1,27 @@
+- id: headers.csp-missing
+  title: Content-Security-Policy が付いていません
+  severity: MEDIUM
+  confidence: medium
+  requires:
+    - proof
+    - consent
+  collectors:
+    - http_headers
+  when:
+    all:
+      - obs:
+          collector: http_headers
+          path: headers
+          key: content-security-policy
+          op: absent
+      - obs:
+          collector: http_headers
+          path: headers
+          key: content-security-policy-report-only
+          op: absent
+  message: CSP も CSP-Report-Only も付いていません。
+  why: CSP が無いと、混入したスクリプトがそのまま実行されます。XSS の影響を狭める最後の層がありません。
+  fix: まず Content-Security-Policy-Report-Only で違反を収集し、影響を確認してから強制に切り替えます。
+  verify: 応答ヘッダーに content-security-policy が含まれることを確認します。
+  tags:
+    - browser

@@ -1,0 +1,28 @@
+- id: cookies.secure-missing
+  title: Secure 属性の無い Cookie があります
+  severity: MEDIUM
+  confidence: high
+  requires:
+    - proof
+    - consent
+  collectors:
+    - http_cookies
+  when:
+    all:
+      - obs:
+          collector: http_cookies
+          path: secure_transport
+          op: eq
+          value: true
+      - obs:
+          collector: http_cookies
+          path: cookies
+          key: attributes.secure
+          op: contains
+          value: false
+  message: HTTPS で配信されているのに、Secure の無い Cookie が設定されています。
+  why: Secure が無いと、同じホストへ http で到達したときに Cookie が平文で送られます。
+  fix: 該当 Cookie に Secure を付けます。http で使う必要がある Cookie だけを例外にします。
+  verify: Set-Cookie に Secure が付いていることを確認します。
+  tags:
+    - cookie

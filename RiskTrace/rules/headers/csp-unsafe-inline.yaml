@@ -1,0 +1,22 @@
+- id: headers.csp-unsafe-inline
+  title: CSP が unsafe-inline を許可しています
+  severity: LOW
+  confidence: medium
+  requires:
+    - proof
+    - consent
+  collectors:
+    - http_headers
+  when:
+    obs:
+      collector: http_headers
+      path: headers
+      key: content-security-policy
+      op: contains
+      value: unsafe-inline
+  message: CSP に unsafe-inline が含まれています。
+  why: unsafe-inline があると、インライン script がそのまま実行されます。nonce や hash を使う場合に比べて XSS の抑止力が落ちます。
+  fix: nonce か hash へ移行し、unsafe-inline を外します。
+  verify: CSP の script-src から unsafe-inline が消えていることを確認します。
+  tags:
+    - browser

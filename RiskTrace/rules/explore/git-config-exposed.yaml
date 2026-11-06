@@ -1,0 +1,21 @@
+- id: explore.git-config-exposed
+  title: .git/config が取得できます
+  severity: MEDIUM
+  confidence: medium
+  requires:
+    - proof
+    - consent
+  collectors:
+    - explore_repo
+  when:
+    obs:
+      collector: explore_repo
+      path: config_exposed
+      op: eq
+      value: true
+  message: /.git/config が 200 で返っています。
+  why: remote の URL が読めると、関連リポジトリやホスティング先が特定されます。資格情報が URL に埋まっていれば、それも露出します。
+  fix: .git を非公開にします。
+  verify: /.git/config が 404 になることを確認します。
+  tags:
+    - exposure

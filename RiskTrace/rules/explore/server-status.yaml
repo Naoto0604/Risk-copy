@@ -1,0 +1,21 @@
+- id: explore.server-status
+  title: /server-status が取得できます
+  severity: LOW
+  confidence: medium
+  requires:
+    - proof
+    - consent
+  collectors:
+    - explore_discover
+  when:
+    obs:
+      collector: explore_discover
+      path: found_paths
+      op: contains
+      value: /server-status
+  message: /server-status が 200 で返っています。
+  why: Apache の mod_status が有効だと、リクエスト状況や設定の一部が読めます。
+  fix: 公開不要なら制限します。
+  verify: /server-status の内容に内部情報が含まれるか確認します。
+  tags:
+    - exposure

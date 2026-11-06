@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>診断の開始</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 2rem auto; max-width: 40rem; padding: 0 1rem; }
+  label { display: block; margin-top: 1rem; font-weight: bold; }
+  input[type="text"] { width: 100%; padding: .4rem; }
+  fieldset { margin-top: 1rem; border: 1px solid #ddd; }
+  .error { background: #fde2e1; padding: .6rem 1rem; }
+  button { margin-top: 1.2rem; padding: .5rem 1.4rem; }
+</style>
+</head>
+<body>
+<h1>低侵襲アクティブ診断</h1>
+
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+<form method="post" action="/v2/scan">
+  <label for="target">対象 URL</label>
+  <input type="text" id="target" name="target" placeholder="https://example.test/" required>
+
+  <label for="consent_id">同意 ID</label>
+  <input type="text" id="consent_id" name="consent_id" placeholder="cns_...">
+
+  <fieldset>
+    <legend>実行する Collector</legend>
+    {% for name in collectors %}
+    <label><input type="checkbox" name="collectors" value="{{ name }}" checked> {{ name }}</label>
+    {% endfor %}
+  </fieldset>
+
+  <button type="submit">診断を開始</button>
+</form>
+
+<p>同意 ID が空の場合は、同意なしの範囲で動きます。所有証明と同意が揃っていないと、通常の Collector は実行されません。</p>
+</body>
+</html>

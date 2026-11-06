@@ -1,0 +1,21 @@
+- id: headers.referrer-policy-missing
+  title: Referrer-Policy が付いていません
+  severity: LOW
+  confidence: medium
+  requires:
+    - proof
+    - consent
+  collectors:
+    - http_headers
+  when:
+    obs:
+      collector: http_headers
+      path: headers
+      key: referrer-policy
+      op: absent
+  message: Referrer-Policy がありません。
+  why: 遷移先へ URL が Referer として渡ります。クエリに識別子を含む画面では外部へ情報が漏れます。
+  fix: strict-origin-when-cross-origin 以上を設定します。
+  verify: 応答ヘッダーに referrer-policy が含まれることを確認します。
+  tags:
+    - privacy

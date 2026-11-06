@@ -1,0 +1,20 @@
+- id: explore.git-remote-visible
+  title: 公開リポジトリの remote が読めます
+  severity: LOW
+  confidence: low
+  requires:
+    - proof
+    - consent
+  collectors:
+    - explore_repo
+  when:
+    obs:
+      collector: explore_repo
+      path: remotes
+      op: present
+  message: .git/config から remote が1件以上読めました。
+  why: ソースが公開されている可能性があります。ただし remote の存在は、そのリポジトリが公開されていることの証明ではありません。
+  fix: 公開が意図どおりか確認します。意図しないなら .git を非公開にします。
+  verify: 読み取れた URL を開き、実際に公開されているか確認します。
+  tags:
+    - exposure

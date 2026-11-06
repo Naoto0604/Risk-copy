@@ -1,0 +1,21 @@
+- id: explore.admin-reachable
+  title: 管理系のパスに到達できます
+  severity: LOW
+  confidence: low
+  requires:
+    - proof
+    - consent
+  collectors:
+    - explore_discover
+  when:
+    obs:
+      collector: explore_discover
+      path: found_paths
+      op: contains
+      value: /admin
+  message: /admin が 200 で返っています。
+  why: 管理画面は攻撃対象になりやすい場所です。到達できることと、認証が効いていることは別です。
+  fix: 管理画面の公開範囲と認証を確認します。不要なら IP 制限などを検討します。
+  verify: 管理画面の認証と公開範囲を確認します。
+  tags:
+    - exposure

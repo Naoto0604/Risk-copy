@@ -1,0 +1,21 @@
+- id: headers.hsts-missing
+  title: Strict-Transport-Security が付いていません
+  severity: MEDIUM
+  confidence: high
+  requires:
+    - proof
+    - consent
+  collectors:
+    - http_headers
+  when:
+    obs:
+      collector: http_headers
+      path: headers
+      key: strict-transport-security
+      op: absent
+  message: HTTPS の応答に HSTS ヘッダーがありません。
+  why: HSTS が無いと、最初の遷移やブックマークから http で開いたときに平文へ落とされます。中間者による書き換えの余地が残ります。
+  fix: HTTPS を提供している全応答に Strict-Transport-Security を付け、max-age を 6 か月以上にします。段階導入なら最初は短い値から始めます。
+  verify: 応答ヘッダーに strict-transport-security が含まれることを確認します。
+  tags:
+    - transport

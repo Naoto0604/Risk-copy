@@ -1,0 +1,21 @@
+- id: explore.git-head-exposed
+  title: .git/HEAD が取得できます
+  severity: MEDIUM
+  confidence: medium
+  requires:
+    - proof
+    - consent
+  collectors:
+    - explore_repo
+  when:
+    obs:
+      collector: explore_repo
+      path: head_exposed
+      op: eq
+      value: true
+  message: /.git/HEAD が 200 で返り、ブランチ名が読めます。
+  why: リポジトリの存在とブランチが分かります。ソースが非公開でも、構成の推定材料になります。
+  fix: 配信サーバーで .git を公開しないようにするか、公開前提なら意図的か確認します。
+  verify: /.git/HEAD が 404 になる、または意図的に公開されていることを確認します。
+  tags:
+    - exposure

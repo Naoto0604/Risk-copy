@@ -1,0 +1,21 @@
+- id: headers.x-frame-options-missing
+  title: X-Frame-Options が付いていません
+  severity: LOW
+  confidence: medium
+  requires:
+    - proof
+    - consent
+  collectors:
+    - http_headers
+  when:
+    obs:
+      collector: http_headers
+      path: headers
+      key: x-frame-options
+      op: absent
+  message: X-Frame-Options がありません。
+  why: 他サイトに埋め込まれたときの挙動が指定されていません。CSP の frame-ancestors で代替している場合は実害が小さいこともあります。
+  fix: X-Frame-Options に DENY か SAMEORIGIN を設定します。CSP の frame-ancestors を使う場合はそちらに一本化します。
+  verify: 応答ヘッダーか CSP の frame-ancestors で埋め込み可否が指定されていることを確認します。
+  tags:
+    - browser
