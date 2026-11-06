@@ -1,4 +1,10 @@
 import re
+from pathlib import Path
+
+from collectors.http import cookies as cookies_collector
+from engine import rule_runner
+from engine.observations import Observation
+from engine.rules import load_rules_from_dir
 from urllib.parse import urlparse, urljoin
 
 
@@ -25,51 +31,100 @@ def check_https(url):
 
 
 def check_security_headers(response):
-    """主要なセキュリティヘッダーの設定状況を確認する。"""
+    """主要なセキュリティヘッダーの設定状況を確認する。判定は rules 側。"""
+    url = response.url
+    observation = Observation.ok("http_headers", url, {
+        "headers": {name: response.headers.get(name) for name in WATCHED_HEADERS},
+        "duplicates": {},
+        "status": getattr(response, "status_code", 200),
+        "downgraded": _downgraded(response),
+    })
+
+    is_https = urlparse(url).scheme.lower() == "https"
     findings = []
-
-    security_headers = {
-        "Content-Security-Policy": "CSP",
-        "X-Content-Type-Options": "X-Content-Type-Options",
-        "X-Frame-Options": "X-Frame-Options",
-        "Referrer-Policy": "Referrer-Policy",
-    }
-
-    # HTTPヘッダー名は大文字・小文字を区別せず比較する
-    existing_headers = {
-        header.lower()
-        for header in response.headers
-    }
-
-    for header, name in security_headers.items():
-        if header.lower() not in existing_headers:
-            findings.append({
-                "type": "SECURITY_HEADER",
-                "subtype": header,
-                "severity": "MEDIUM",
-                "title": f"{name}が設定されていません",
-                "url": response.url,
-                "description": (
-                    f"{header}ヘッダーが確認できませんでした。"
-                ),
-            })
-
-    # HTTPSの場合のみHSTSを確認する
-    if urlparse(response.url).scheme.lower() == "https":
-        if "strict-transport-security" not in existing_headers:
-            findings.append({
-                "type": "SECURITY_HEADER",
-                "subtype": "Strict-Transport-Security",
-                "severity": "MEDIUM",
-                "title": "HSTSが設定されていません",
-                "url": response.url,
-                "description": (
-                    "Strict-Transport-Securityヘッダーが"
-                    "確認できませんでした。"
-                ),
-            })
-
+    for finding in _run_rules(_HEADER_RULES, observation, _HEADER_SUBTYPES):
+        if finding["subtype"] == "Strict-Transport-Security" and not is_https:
+            continue
+        header = finding["subtype"]
+        finding["description"] = f"{header}ヘッダーが確認できませんでした。"
+        findings.append(finding)
     return findings
+
+
+_RULES = Path(__file__).resolve().parent.parent / "rules"
+_HEADER_RULES = _RULES / "headers"
+_COOKIE_RULES = _RULES / "cookies"
+
+WATCHED_HEADERS = (
+    "content-security-policy",
+    "content-security-policy-report-only",
+    "strict-transport-security",
+    "x-content-type-options",
+    "x-frame-options",
+    "referrer-policy",
+)
+
+_HEADER_SUBTYPES = {
+    "headers.csp-missing": ("SECURITY_HEADER", "Content-Security-Policy", "CSPが設定されていません"),
+    "headers.hsts-missing": ("SECURITY_HEADER", "Strict-Transport-Security", "HSTSが設定されていません"),
+    "headers.referrer-policy-missing": ("SECURITY_HEADER", "Referrer-Policy", "Referrer-Policyが設定されていません"),
+    "headers.x-content-type-options-missing": ("SECURITY_HEADER", "X-Content-Type-Options", "X-Content-Type-Optionsが設定されていません"),
+    "headers.x-frame-options-missing": ("SECURITY_HEADER", "X-Frame-Options", "X-Frame-Optionsが設定されていません"),
+}
+_COOKIE_SUBTYPES = {
+    "cookies.httponly-missing": ("COOKIE", "COOKIE_HTTPONLY_MISSING", "HttpOnly属性が設定されていません"),
+    "cookies.over-http": ("COOKIE", "COOKIE_SECURE_MISSING", "Secure属性が設定されていません"),
+    "cookies.samesite-invalid": ("COOKIE", "COOKIE_SAMESITE_INVALID", "SameSite属性の値が不正です"),
+    "cookies.samesite-missing": ("COOKIE", "COOKIE_SAMESITE_MISSING", "SameSite属性が設定されていません"),
+    "cookies.samesite-none": ("COOKIE", "COOKIE_SAMESITE_NONE_WITHOUT_SECURE", "SameSite=NoneのCookieにSecureが設定されていません"),
+    "cookies.secure-missing": ("COOKIE", "COOKIE_SECURE_MISSING", "Secure属性が設定されていません"),
+}
+
+_COOKIE_REASONS = {
+    "COOKIE_HTTPONLY_MISSING": "HttpOnlyがないためJavaScriptからCookieを読める可能性があります。",
+    "COOKIE_SECURE_MISSING": "HTTPSレスポンスで発行されたCookieにSecureがありません。",
+    "COOKIE_SAMESITE_MISSING": "SameSiteが明示されていません。ブラウザーの既定動作は環境により異なる場合があります。",
+    "COOKIE_SAMESITE_INVALID": "SameSiteの値がStrict、Lax、Noneのいずれでもありません。",
+    "COOKIE_SAMESITE_NONE_WITHOUT_SECURE": "SameSite=NoneにはSecureの併用が必要です。",
+}
+
+def _run_rules(rules_dir, observation, subtypes):
+    """ルールを当て、旧 Finding 形式に写す。"""
+    index = rule_runner.ObservationIndex()
+    index.add(observation)
+    normal, low = rule_runner.run(
+        load_rules_from_dir(rules_dir),
+        [observation],
+        satisfied=frozenset({"proof", "consent"}),
+    )
+
+    findings = []
+    for found in normal + low:
+        mapped = subtypes.get(found.rule_id)
+        if mapped is None:
+            continue
+        kind, subtype, title = mapped
+        findings.append({
+            "type": kind,
+            "subtype": subtype,
+            "severity": found.severity,
+            "title": title,
+            "url": observation.subject,
+            "description": found.message,
+            "recommendation": found.fix,
+        })
+    return findings
+
+def _downgraded(response):
+    """https から http へ落ちた遷移があるか。"""
+    previous = "https" if urlparse(response.url).scheme.lower() == "https" else "http"
+    for step in reversed(getattr(response, "history", []) or []):
+        scheme = urlparse(getattr(step, "url", "")).scheme.lower()
+        if scheme == "https" and previous == "http":
+            return True
+        previous = scheme
+    return False
+
 
 
 REDIRECT_STATUS_CODES = {
@@ -493,99 +548,56 @@ def _cookie_attribute_evidence(cookie):
 
 
 def check_cookies(response):
-    """Assess each Set-Cookie independently, without retaining cookie values."""
+    """Set-Cookie 属性を確認する。判定は rules 側、Evidence は Cookie 単位。"""
     cookie_headers = _get_set_cookie_headers(response)
     if not cookie_headers:
-        return []
-
-    parsed_cookies = [
-        cookie
-        for index, header in enumerate(cookie_headers, start=1)
-        if (cookie := _parse_cookie(header, f"Cookie #{index}")) is not None
-    ]
-    if not parsed_cookies:
         return []
 
     is_https = urlparse(response.url).scheme.lower() == "https"
     issues = []
 
-    def add_issue(cookie, subtype, title, severity, reason, recommendation):
-        issues.append({
-            "type": "COOKIE",
-            "subtype": subtype,
-            "severity": severity,
-            "title": title,
-            "url": response.url,
-            "description": (
-                f"{reason} 用途はCookie名からの推定であり、実際の用途は未確認です。"
-            ),
-            "evidence": _cookie_attribute_evidence(cookie),
-            "recommendation": recommendation,
+    for index, header in enumerate(cookie_headers, start=1):
+        cookie = _parse_cookie(header, f"Cookie #{index}")
+        if cookie is None:
+            continue
+
+        samesite = (cookie["same_site"] or "").lower() or None
+        observation = Observation.ok("http_cookies", response.url, {
+            "cookies": [{
+                "id": cookie["reference"],
+                "attributes": {
+                    "httponly": cookie["httponly"],
+                    "secure": cookie["secure"],
+                },
+                "samesite": samesite,
+                "samesite_valid": cookie["same_site_valid"],
+            }],
+            "count": 1,
+            "secure_transport": is_https,
         })
 
-    for cookie in parsed_cookies:
-        auth_candidate = cookie["sensitive_candidate"]
-        confidence_note = cookie["confidence"]
-        review_severity = "MEDIUM" if auth_candidate else "LOW"
+        none_without_secure = samesite == "none" and not cookie["secure"]
+        severity = "MEDIUM" if cookie["sensitive_candidate"] else "LOW"
 
-        if not cookie["httponly"]:
-            add_issue(
-                cookie,
-                "COOKIE_HTTPONLY_MISSING",
-                "HttpOnly属性が設定されていません",
-                review_severity,
-                "HttpOnlyがないためJavaScriptからCookieを読める可能性があります。"
-                f"{cookie['purpose']}。{confidence_note}。",
-                "Cookieの用途を確認し、ブラウザーJavaScriptから読む必要がなければHttpOnlyを設定してください。",
-            )
+        for finding in _run_rules(_COOKIE_RULES, observation, _COOKIE_SUBTYPES):
+            subtype = finding["subtype"]
+            if none_without_secure and subtype == "COOKIE_SECURE_MISSING":
+                continue
+            if subtype == "COOKIE_SECURE_MISSING" and not is_https:
+                continue
+            if subtype == "COOKIE_SAMESITE_NONE_WITHOUT_SECURE" and cookie["secure"]:
+                continue        
 
-        same_site_none_without_secure = (
-            cookie["same_site"] == "None" and not cookie["secure"]
-        )
-        if same_site_none_without_secure:
-            add_issue(
-                cookie,
-                "COOKIE_SAMESITE_NONE_WITHOUT_SECURE",
-                "SameSite=NoneのCookieにSecureが設定されていません",
-                review_severity,
-                "SameSite=NoneにはSecureの併用が必要です。"
-                f"{cookie['purpose']}。{confidence_note}。",
-                "SameSite=Noneが必要な設計か確認し、必要であればSecureを設定してHTTPSで配信してください。",
+            reason = _COOKIE_REASONS[subtype]
+            finding["severity"] = severity
+            finding["description"] = (
+                f"{reason} {cookie['purpose']}。{cookie['confidence']}。"
+                " 用途はCookie名からの推定であり、実際の用途は未確認です。"
             )
-        elif is_https and not cookie["secure"]:
-            add_issue(
-                cookie,
-                "COOKIE_SECURE_MISSING",
-                "Secure属性が設定されていません",
-                review_severity,
-                "HTTPSレスポンスで発行されたCookieにSecureがありません。"
-                f"{cookie['purpose']}。{confidence_note}。",
-                "Cookieの送信範囲を確認し、HTTPS専用にするCookieにはSecureを設定してください。",
-            )
-
-        if cookie["same_site"] is None:
-            add_issue(
-                cookie,
-                "COOKIE_SAMESITE_MISSING",
-                "SameSite属性が設定されていません",
-                review_severity,
-                "SameSiteが明示されていません。ブラウザーの既定動作は環境により異なる場合があります。"
-                f"{cookie['purpose']}。{confidence_note}。",
-                "Cookieのクロスサイト利用要件を確認し、必要に応じてLaxまたはStrictを設定してください。",
-            )
-        elif cookie["same_site_valid"] is False:
-            add_issue(
-                cookie,
-                "COOKIE_SAMESITE_INVALID",
-                "SameSite属性の値が不正です",
-                review_severity,
-                "SameSiteの値がStrict、Lax、Noneのいずれでもありません。"
-                f"{cookie['purpose']}。{confidence_note}。",
-                "SameSiteをStrict、Lax、Noneのいずれかにし、Noneの場合はSecureも設定してください。",
-            )
+            finding["evidence"] = _cookie_attribute_evidence(cookie)
+            issues.append(finding)
 
     return issues
-
 
 def run_checks(url, response, enabled_checks=None):
     """

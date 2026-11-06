@@ -1,0 +1,22 @@
+- id: cookies.samesite-invalid
+  title: SameSite の値が不正です
+  severity: LOW
+  confidence: high
+  requires:
+    - proof
+    - consent
+  collectors:
+    - http_cookies
+  when:
+    obs:
+      collector: http_cookies
+      path: cookies
+      key: samesite_valid
+      op: contains
+      value: false
+  message: SameSite が Strict / Lax / None のいずれでもありません。
+  why: 不正な値はブラウザーごとに扱いが分かれ、意図した制御になりません。
+  fix: Strict / Lax / None のいずれかにし、None なら Secure も付けます。
+  verify: Set-Cookie の SameSite が3値のいずれかであることを確認します。
+  tags:
+    - cookie
