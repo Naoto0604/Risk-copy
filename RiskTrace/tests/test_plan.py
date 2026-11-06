@@ -255,7 +255,24 @@ class TestRunner(PlanTestCase):
         self.assertEqual(result.status, queue_module.COMPLETED)
         self.assertIsNone(result.note)
 
+class TestDefaultRules(unittest.TestCase):
 
+    def test_all_rules_are_loaded(self):
+        from engine import plan
+
+        ruleset = plan.load_all_rules()
+        self.assertGreater(len(ruleset), 0)
+
+    def test_correlation_rules_are_excluded(self):
+        from engine import plan
+
+        ids = plan.load_all_rules().ids
+        self.assertFalse(any(rule_id.startswith("correlation.") for rule_id in ids))
+
+    def test_header_rules_are_present(self):
+        from engine import plan
+
+        self.assertIn("headers.csp-missing", plan.load_all_rules().ids)
 
 if __name__ == "__main__":
     unittest.main()

@@ -35,6 +35,21 @@ from evidence import store
 RULES_DIR = Path(__file__).resolve().parent.parent / "rules"
 CORRELATIONS_DIR = RULES_DIR / "correlations"
 
+def load_all_rules() -> RuleSet:
+    """カテゴリ別ディレクトリのルールをまとめて読む。
+
+    ``rules/`` 直下には YAML を置かない。``correlations`` は相関用の書式
+    なので、通常ルールとしては読まない。
+    """
+    if not RULES_DIR.is_dir():
+        return RuleSet()
+
+    rules: list = []
+    for directory in sorted(RULES_DIR.iterdir()):
+        if not directory.is_dir() or directory.name == "correlations":
+            continue
+        rules.extend(load_rules_from_dir(directory).rules)
+    return RuleSet(tuple(rules))
 
 @dataclass(frozen=True)
 class Step:
@@ -177,7 +192,7 @@ def run_plan(
     index = ObservationIndex()
     index.extend(usable)
 
-    ruleset = rules if rules is not None else load_rules_from_dir(RULES_DIR)
+    ruleset = rules if rules is not None else load_all_rules()
     findings, low = run_rules(ruleset, usable, satisfied=frozenset(satisfied))
 
     correlation_set = (
