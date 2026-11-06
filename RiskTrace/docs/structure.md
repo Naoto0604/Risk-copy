@@ -44,6 +44,7 @@ RiskTrace/
 │  └─ model.py
 ├─ report_export.py          v1
 ├─ engine/legacy_ports.py    v1 向けポート検査ブリッジ
+├─ engine/legacy_crawl.py    v1 向けクロールブリッジ
 ├─ database/
 │  ├─ db.py models.py queue.py report_store.py
 ├─ templates/                v2 は *_v2.html
@@ -51,5 +52,4 @@ RiskTrace/
 └─ docs/                     design_memo.md milestones.md structure.md legacy_v1.md
 ```
 
-v1 と v2 の重複（`scanner/port_check.py` → `collectors/ports/scan.py`、`scanner/crawler.py` → `collectors/explore/crawl.py`、`scanner/checks.py` → `collectors/http/headers.py`、`analyzer/scoring.py` → `analyzer/scoring_v2.py`、`report_export.py` → `report/export.py`）は順次解消する。
 ```

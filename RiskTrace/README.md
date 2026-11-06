@@ -125,7 +125,7 @@ python -m unittest discover -s tests -v
 - 前回比の比較元の選び方が未決定
 - 保存期間を過ぎたレポートは起動時に消える。Finding も同時に消え、`scans` の行だけ履歴として残る
 - バナーからの CVE 照合は未移植（旧実装は requests 直呼びのため Scheduler 経由化が必要）
-- 旧 `crawler` / `checks` / `scoring` / `report_export` と v2 の重複が残る
+- 旧 `checks` / `scoring` / `report_export` と v2 の重複が残る
 
 ## 併存と移行
 
