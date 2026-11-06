@@ -11,17 +11,17 @@
     any:
       - obs:
           collector: ports
-          path: open
+          path: open_external
           op: contains
           value: 3000
       - obs:
           collector: ports
-          path: open
+          path: open_external
           op: contains
           value: 5000
       - obs:
           collector: ports
-          path: open
+          path: open_external
           op: contains
           value: 8000
   message: 3000 / 5000 / 8000 のいずれかが開いています。

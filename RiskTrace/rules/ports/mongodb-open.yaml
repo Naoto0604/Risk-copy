@@ -10,7 +10,7 @@
   when:
     obs:
       collector: ports
-      path: open
+      path: open_external
       op: contains
       value: 27017
   message: 27017 で TCP 接続できました。

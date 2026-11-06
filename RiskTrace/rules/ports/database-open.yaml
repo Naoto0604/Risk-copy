@@ -11,17 +11,17 @@
     any:
       - obs:
           collector: ports
-          path: open
+          path: open_external
           op: contains
           value: 3306
       - obs:
           collector: ports
-          path: open
+          path: open_external
           op: contains
           value: 5432
       - obs:
           collector: ports
-          path: open
+          path: open_external
           op: contains
           value: 1433
   message: MySQL / PostgreSQL / SQL Server の既定ポートのいずれかが開いています。

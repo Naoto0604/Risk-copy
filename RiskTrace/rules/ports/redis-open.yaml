@@ -10,7 +10,7 @@
   when:
     obs:
       collector: ports
-      path: open
+      path: open_external
       op: contains
       value: 6379
   message: 6379 で TCP 接続できました。

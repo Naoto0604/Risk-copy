@@ -1,0 +1,26 @@
+- id: ports.review-loopback-only
+  title: 開いているポートがループバック経由だけで確認されました
+  severity: INFO
+  confidence: low
+  requires:
+    - proof
+    - consent
+  collectors:
+    - ports
+  when:
+    all:
+      - obs:
+          collector: ports
+          path: open_external
+          op: empty
+      - not:
+          obs:
+            collector: ports
+            path: open_loopback
+            op: empty
+  message: 接続できたポートはありますが、接続先 IP はすべてループバックアドレスです。
+  why: ループバックは同じ端末から見た経路です。別ホストや外部ネットワークから到達できることを示しません。
+  fix: 外部公開が必要なサービスか確認し、不要なら待ち受けアドレスを絞ります。
+  verify: 別端末から同じポートへ接続し、到達可否を確認します。
+  tags:
+    - network

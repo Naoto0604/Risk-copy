@@ -14,7 +14,7 @@ from analyzer.comparison import compare_findings
 from analyzer.vulnerability_lookup import lookup_cve_candidates
 from flask import Flask, render_template, request, redirect
 from flask import make_response
-from scanner.port_check import check_web_ports
+from engine.legacy_ports import check_web_ports
 from report_export import register_export_routes
 # ======= #5 追加 =======
 # データベース読み込み用import

@@ -19,13 +19,15 @@ def observation(*open_ports):
             "host": HOST,
             "ports": [],
             "open": list(open_ports),
+            "open_external": list(open_ports),
+            "open_loopback": [],
+            "scope_counts": {"PUBLIC": len(open_ports)} if open_ports else {},
             "counts": {"open": len(open_ports)},
             "tried": len(open_ports),
             "truncated": False,
             "truncated_reason": None,
         },
     )
-
 
 def ids_of(findings):
     return {finding.rule_id for finding in findings}
