@@ -60,6 +60,7 @@ pip install -r requirements.txt
 
 ```powershell
 python app_v2.py
+セッション署名鍵は環境変数 `RISKTRACE_SECRET` から読む。未設定なら起動ごとに生成するため、再起動でセッションが切れる。
 ```
 
 `/v2/` を開く。
@@ -117,7 +118,7 @@ python -m unittest discover -s tests -v
 
 ## 既知の未対応
 
-- `app_v2` に CSRF・認証・レート制限が無い
+- セッション署名鍵は環境変数 `RISKTRACE_SECRET` から読む。未設定なら起動ごとに生成するため、再起動でセッションが切れる。
 - 相関ルールは `rules/correlations/` に置く。`collectors` に2つ以上を列挙し、`when` はその中だけを参照する
 - 相関の Finding は `rule_id` に `corr:` が付き、単独ルールと出所が分かれる
 - 前回比の比較元の選び方が未決定
