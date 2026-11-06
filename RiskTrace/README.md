@@ -109,6 +109,7 @@ python app_v2.py
 - `report/model.py` が Finding をグループ・アクション・レビュー項目に整理する
 - `report/export.py` は JSON と CSV。CSV は UTF-8 BOM、数式解釈されるセルはアポストロフィを前置
 - 出力は COMPLETED のスキャンに限る
+- 前回比の比較元はホストで決める。スキーム・末尾スラッシュ・大文字小文字は無視する
 
 ## テスト
 
