@@ -43,7 +43,7 @@ RiskTrace/
 │  ├─ export.py
 │  └─ model.py
 ├─ report_export.py          v1
-├─ scanner/                  v1
+├─ engine/legacy_ports.py    v1 向けポート検査ブリッジ
 ├─ database/
 │  ├─ db.py models.py queue.py report_store.py
 ├─ templates/                v2 は *_v2.html
