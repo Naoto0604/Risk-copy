@@ -2,7 +2,7 @@
 
 管理対象ホストに対する低侵襲アクティブ診断ツール。所有証明・同意・スコープ・ゲートを通したうえで収集を行い、観測をルールで判定し、相関・スコアリングを経てレポートに落とす。
 
-v2 パイプライン（`app_v2.py`）が主線。v1 の `app.py` と `scanner/` 系は当面併存しており、その仕様は [docs/legacy_v1.md](docs/legacy_v1.md) を参照する。
+低侵襲アクティブ診断の実装。旧 v1 の画面は削除済みで、当時の資料は [docs/legacy_v1.md](docs/legacy_v1.md) に残している。
 
 ## 位置づけ
 
@@ -14,7 +14,7 @@ v2 パイプライン（`app_v2.py`）が主線。v1 の `app.py` と `scanner/`
 ## 構成
 
 ```
-app_v2.py                  v2 の入口（Flask）
+app.py                     入口（Flask）
 engine/
   service.py               スキャン実行の組み立て
   plan.py                  実行計画と step の取捨
@@ -32,7 +32,7 @@ verification/
 evidence/store.py          根拠の保存
 rules/
   headers/ cookies/ tls/ ports/ dns/ explore/   YAML ルール
-analyzer/scoring_v2.py     スコアリング
+engine/scoring_v2.py       スコアリング
 report/model.py            レポートモデル
 report/export.py           JSON / CSV エクスポート
 database/
@@ -61,7 +61,7 @@ pip install -r requirements.txt
 ```powershell
 $env:RISKTRACE_PASSWORD = "任意のパスワード"
 $env:RISKTRACE_SECRET = "任意の長い文字列"
-python app_v2.py
+python app.py
 CVE 候補の照合は NVD の API を使います。`NVD_API_KEY` を設定するとレート制限が緩みます（未設定でも動きますが、照合は 6 秒間隔になります）。
 
 `/v2/` を開く。
@@ -122,8 +122,8 @@ python -m unittest discover -s tests -v
 - 相関ルールは `rules/correlations/` に置く。`collectors` に2つ以上を列挙し、`when` はその中だけを参照する
 - 相関の Finding は `rule_id` に `corr:` が付き、単独ルールと出所が分かれる
 - 保存期間を過ぎたレポートは起動時に消える。Finding も同時に消え、`scans` の行だけ履歴として残る
-- `legacy_checks` は観測の組み立てと旧形式への変換だけを行う（判定はすべて `rules/` 側）
-- v1 の `/export/` もレポート形式（schema 2.0）で出力する。旧形式の findings 行ではなく、`rule_id` ごとに集約した行になる
+- 判定はすべて `rules/` の YAML。Python 側は観測の組み立てと変換だけを行う
+- `/export/` はレポート形式（schema 2.0）で出力する。`rule_id` ごとに集約した行になる
 - 認証は単一パスワードのみ。利用者ごとの権限分離、パスワード変更、ログイン試行の制限は無い
 - CSRF は全 POST にトークンを要求する。レート制限はホスト単位5回/60秒で、プロセス内の記憶のみ
 - 公開する場合は HTTPS 終端と `RISKTRACE_SECRET` の固定が前提
@@ -131,7 +131,7 @@ python -m unittest discover -s tests -v
 
 ## 併存と移行
 
-v1 は壊さず残し、v2 は別モジュール・別テーブル（`findings_v2` / `reports_v2`）で動かす。旧コードは判定と通信を含むものだけ移し替え、含まないものはそのまま使う。旧モジュールを新側から呼ぶときは `client.fetch` か Scheduler 経由にし、`requests` 直呼びを残さない。
+テーブルは `findings_v2` / `reports_v2` を使う。通信は `client.fetch` か Scheduler 経由にし、`requests` の直呼びを残さない。
 
 ## ドキュメント
 
