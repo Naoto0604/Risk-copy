@@ -59,6 +59,12 @@ pip install -r requirements.txt
 ## 起動
 
 ```powershell
+python app.py
+http://127.0.0.1:5001/ を開きます。127.0.0.1 のみで待ち受けるため、既定では認証なしです。
+
+公開する場合や、同じ機械の他ユーザーから触られたくない場合はパスワードを設定します。
+
+
 $env:RISKTRACE_PASSWORD = "任意のパスワード"
 $env:RISKTRACE_SECRET = "任意の長い文字列"
 python app.py
