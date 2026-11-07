@@ -13,7 +13,7 @@ import re
 from copy import deepcopy
 from typing import Any
 
-from engine.legacy_crawl import normalize_url
+from collectors.explore.crawl import normalize_url
 
 # Existing RiskTrace scale. CRITICAL is kept at 4 points for compatibility
 # with the current priority tests; it is promoted to 最優先 as a special case.
