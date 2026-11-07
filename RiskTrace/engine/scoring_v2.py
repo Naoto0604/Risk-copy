@@ -50,8 +50,9 @@ TAG_EXPOSURE = {
 }
 DEFAULT_EXPOSURE = 2.0
 
-#: 飽和関数の半減定数。大きいほど伸びにくい。
-HALF = {"impact": 30.0, "reachability": 25.0, "exposure": 20.0}
+#: 飽和関数の半減定数。小さいほど少ない件数で立ち上がる。
+#: 実測で 1 件の CRITICAL が 14/100 と低すぎたため、低件数側を上げた。
+HALF = {"impact": 8.0, "reachability": 40.0, "exposure": 32.0}
 
 #: 総合への重み。
 AXIS_WEIGHTS = {"impact": 0.5, "reachability": 0.3, "exposure": 0.2}
