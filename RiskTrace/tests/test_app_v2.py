@@ -7,9 +7,9 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
-import app_v2
+import app
 from analyzer.scoring_v2 import score
-from app_v2 import _RUNNING
+from app import _RUNNING
 from database import db as db_module
 from database import report_store
 from database.models import get_scan, init_db
@@ -63,7 +63,7 @@ class AppTestCase(unittest.TestCase):
         ownership.init_proofs()
         ratelimit.reset()
 
-        from app_v2 import app  # noqa: F811 - テスト用に取り直す
+        from app import app  # noqa: F811 - テスト用に取り直す
 
         app.config["TESTING"] = True
         self.client = app.test_client()
@@ -128,7 +128,7 @@ class TestScan(AppTestCase):
 
     def setUp(self):
         super().setUp()
-        patcher = mock.patch("app_v2.service.run_scan", side_effect=fake_run_scan)
+        patcher = mock.patch("app.service.run_scan", side_effect=fake_run_scan)
         patcher.start()
         self.addCleanup(patcher.stop)
 
@@ -177,7 +177,7 @@ class TestReport(AppTestCase):
 
     def setUp(self):
         super().setUp()
-        patcher = mock.patch("app_v2.service.run_scan", side_effect=fake_run_scan)
+        patcher = mock.patch("app.service.run_scan", side_effect=fake_run_scan)
         patcher.start()
         self.addCleanup(patcher.stop)
 
@@ -223,30 +223,30 @@ class TestRunningGuard(AppTestCase):
         thread = threading.Thread(target=gate.wait, daemon=True)
         thread.start()
         try:
-            app_v2._claim("scan-a", thread)
-            with self.assertRaises(app_v2.AlreadyRunning):
-                app_v2._claim("scan-a", thread)
+            app._claim("scan-a", thread)
+            with self.assertRaises(app.AlreadyRunning):
+                app._claim("scan-a", thread)
         finally:
             gate.set()
             thread.join(timeout=5)
-            app_v2._release("scan-a")
+            app._release("scan-a")
 
     def test_dead_thread_is_replaced(self):
         thread = threading.Thread(target=lambda: None, daemon=True)
         thread.start()
         thread.join(timeout=5)
         try:
-            app_v2._claim("scan-b", thread)
+            app._claim("scan-b", thread)
             replacement = threading.Thread(target=lambda: None, daemon=True)
-            app_v2._claim("scan-b", replacement)
+            app._claim("scan-b", replacement)
             self.assertIs(_RUNNING["scan-b"], replacement)
         finally:
-            app_v2._release("scan-b")
+            app._release("scan-b")
 
     def test_release_removes_the_entry(self):
         thread = threading.Thread(target=lambda: None, daemon=True)
-        app_v2._claim("scan-c", thread)
-        app_v2._release("scan-c")
+        app._claim("scan-c", thread)
+        app._release("scan-c")
         self.assertNotIn("scan-c", _RUNNING)
 
     def test_running_is_true_for_a_live_thread(self):
@@ -254,22 +254,22 @@ class TestRunningGuard(AppTestCase):
         thread = threading.Thread(target=gate.wait, daemon=True)
         thread.start()
         try:
-            app_v2._claim("scan-d", thread)
-            self.assertTrue(app_v2._running("scan-d"))
+            app._claim("scan-d", thread)
+            self.assertTrue(app._running("scan-d"))
         finally:
             gate.set()
             thread.join(timeout=5)
-            app_v2._release("scan-d")
+            app._release("scan-d")
 
     def test_running_is_false_for_a_finished_thread(self):
         thread = threading.Thread(target=lambda: None, daemon=True)
         thread.start()
         thread.join(timeout=5)
         try:
-            app_v2._claim("scan-e", thread)
-            self.assertFalse(app_v2._running("scan-e"))
+            app._claim("scan-e", thread)
+            self.assertFalse(app._running("scan-e"))
         finally:
-            app_v2._release("scan-e")
+            app._release("scan-e")
 
 
 class TestDuplicatePost(AppTestCase):
@@ -282,7 +282,7 @@ class TestDuplicatePost(AppTestCase):
             self.gate.wait(timeout=5)
             return fake_run_scan(scan_id)
 
-        patcher = mock.patch("app_v2.service.run_scan", side_effect=blocking)
+        patcher = mock.patch("app.service.run_scan", side_effect=blocking)
         patcher.start()
         self.addCleanup(patcher.stop)
 
@@ -292,7 +292,7 @@ class TestDuplicatePost(AppTestCase):
 
     def test_second_post_with_the_same_id_is_409(self):
         token = self.csrf()
-        with mock.patch("app_v2.uuid.uuid4", return_value="fixed-id"):
+        with mock.patch("app.uuid.uuid4", return_value="fixed-id"):
             first = self.client.post("/v2/scan", data={"target": TARGET, "csrf_token": token})
             second = self.client.post("/v2/scan", data={"target": TARGET, "csrf_token": token})
         self.assertEqual(first.status_code, 200)
@@ -303,7 +303,7 @@ class TestCsrf(AppTestCase):
 
     def setUp(self):
         super().setUp()
-        patcher = mock.patch("app_v2.service.run_scan", side_effect=fake_run_scan)
+        patcher = mock.patch("app.service.run_scan", side_effect=fake_run_scan)
         patcher.start()
         self.addCleanup(patcher.stop)
 
@@ -331,7 +331,7 @@ class TestRateLimit(AppTestCase):
 
     def setUp(self):
         super().setUp()
-        patcher = mock.patch("app_v2.service.run_scan", side_effect=fake_run_scan)
+        patcher = mock.patch("app.service.run_scan", side_effect=fake_run_scan)
         patcher.start()
         self.addCleanup(patcher.stop)
 
@@ -356,13 +356,13 @@ class TestRateLimit(AppTestCase):
 class TestBootstrap(AppTestCase):
 
     def test_bootstrap_purges_expired_reports(self):
-        with mock.patch("app_v2.report_store.purge_expired") as purge:
-            app_v2._bootstrap()
+        with mock.patch("app.report_store.purge_expired") as purge:
+            app._bootstrap()
         purge.assert_called_once()
 
     def test_bootstrap_creates_the_job_table(self):
-        with mock.patch("app_v2.queue_module.init_queue") as init:
-            app_v2._bootstrap()
+        with mock.patch("app.queue_module.init_queue") as init:
+            app._bootstrap()
         init.assert_called_once()
 
 

@@ -1,6 +1,6 @@
 import unittest
 
-from app import build_risk_map, summarize_findings
+from engine.legacy_report import build_risk_map, summarize_findings
 
 
 class TestResultOverview(unittest.TestCase):
