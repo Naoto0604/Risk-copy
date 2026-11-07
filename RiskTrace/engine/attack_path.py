@@ -95,13 +95,18 @@ _HEADER_PATH = AttackPath(
     rule_ids=(),
 )
 
+def _key(subject: str) -> str:
+    """末尾スラッシュの差を吸収する。"""
+    return subject.rstrip("/") or subject
+
 
 def _by_subject(findings: Iterable[Finding]) -> dict[str, list[Finding]]:
     grouped: dict[str, list[Finding]] = {}
     for finding in findings:
-        grouped.setdefault(finding.subject, []).append(finding)
+        if not finding.subject:
+            continue
+        grouped.setdefault(_key(finding.subject), []).append(finding)
     return grouped
-
 
 def _build(template: AttackPath, subject: str, items: list[Finding]) -> AttackPath:
     return AttackPath(
@@ -119,9 +124,10 @@ def generate(findings: Iterable[Finding]) -> tuple[AttackPath, ...]:
     """条件が揃った subject について経路を作る。"""
     paths: list[AttackPath] = []
 
-    for subject, items in _by_subject(findings).items():
-        if not subject:
-            continue
+    for _group_key, items in _by_subject(findings).items():
+        subject = items[0].subject
+
+
         rule_ids = {item.rule_id for item in items}
         if INSECURE_TRANSPORT not in rule_ids:
             continue

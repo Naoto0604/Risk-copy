@@ -15,7 +15,7 @@
 <h1>RiskTrace</h1>
 
 {% if error %}<p class="error">{{ error }}</p>{% endif %}
-
+{% if disabled %}<p class="muted">認証は無効です。`RISKTRACE_PASSWORD` を設定すると有効になります。</p>{% endif %}
 <form method="post" action="/v2/login">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <label for="password">パスワード</label>

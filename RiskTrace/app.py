@@ -85,10 +85,11 @@ def _require_login():
     """`/v2/login` 以外はログイン必須にする。"""
     if request.endpoint in ("login", "static"):
         return None
+    if not auth.required():
+        return None
     if auth.is_authenticated():
         return None
     return redirect(url_for("login", next=request.path))
-
 
 @app.before_request
 def _check_csrf():
@@ -131,10 +132,16 @@ def _run(scan_id: str, target: str, consent_id: str | None, selected: tuple[str,
     finally:
         _release(scan_id)
 
+@app.route("/", methods=["GET"])
+def root():
+    return redirect(url_for("index"))
+
+
 @app.route("/v2/login", methods=["GET", "POST"])
 def login():
     if request.method == "GET":
-        return render_template("login_v2.html")
+        return render_template("login_v2.html", disabled=not auth.required())
+    
 
     if not auth.check(request.form.get("password")):
         return render_template("login_v2.html", error="パスワードが違います"), 401
@@ -267,4 +274,11 @@ def report(scan_id: str):
 
 if __name__ == "__main__":
     _bootstrap()
+    if auth.required():
+        print("[RiskTrace] 認証ありで起動します。")
+    else:
+        print(
+            "[RiskTrace] RISKTRACE_PASSWORD 未設定のため認証なしで起動します。"
+            " 公開する場合は設定してください。"
+        )
     app.run(debug=True, port=5001)

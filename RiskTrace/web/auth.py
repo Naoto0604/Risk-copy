@@ -45,6 +45,9 @@ def is_configured() -> bool:
     """環境変数で与えられているか。"""
     return bool((os.environ.get(PASSWORD_ENV) or "").strip())
 
+def required() -> bool:
+    """環境変数でパスワードが与えられているときだけ認証を要求する。"""
+    return is_configured()
 
 def check(candidate: str | None) -> bool:
     if not candidate:

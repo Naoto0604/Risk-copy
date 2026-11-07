@@ -67,6 +67,9 @@ class AppTestCase(unittest.TestCase):
 
         app.config["TESTING"] = True
         self.client = app.test_client()
+        patcher = mock.patch.dict("os.environ", {"RISKTRACE_PASSWORD": "test-password"})
+        patcher.start()
+        self.addCleanup(patcher.stop)
         auth.reset("test-password")
         with self.client.session_transaction() as sess:
             sess["authenticated"] = True
@@ -123,7 +126,11 @@ class TestForm(AppTestCase):
                                     data={"target": "  ", "csrf_token": self.csrf()})
         self.assertEqual(response.status_code, 400)
 
-
+    def test_root_redirects_to_the_form(self):
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/v2/", response.headers["Location"])
+        
 class TestScan(AppTestCase):
 
     def setUp(self):
@@ -399,7 +406,10 @@ class TestLogin(AppTestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(self.client.get("/v2/").status_code, 302)
 
-
+    def test_without_password_the_form_opens(self):
+        with mock.patch.dict("os.environ", {"RISKTRACE_PASSWORD": ""}):
+            self.logout()
+            self.assertEqual(self.client.get("/v2/").status_code, 200)
 
 if __name__ == "__main__":
     unittest.main()

@@ -59,5 +59,12 @@ class TestGenerate(unittest.TestCase):
         self.assertEqual(generate([]), ())
 
 
+    def test_trailing_slash_difference_is_absorbed(self):
+        paths = generate([
+            finding("transport.https-missing", "HIGH", "http://a.test/x/"),
+            finding("cookies.over-http", "LOW", "http://a.test/x"),
+        ])
+        self.assertEqual(len(paths), 1)
+
 if __name__ == "__main__":
     unittest.main()
