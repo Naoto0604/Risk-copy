@@ -19,7 +19,7 @@ from urllib.parse import urlsplit
 from dataclasses import dataclass, replace
 from typing import Any, Iterable
 from database import report_store
-from analyzer import scoring_v2
+from engine import scoring_v2
 from database import queue as queue_module
 from engine import cve
 from engine import attack_path

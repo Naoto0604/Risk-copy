@@ -1,7 +1,6 @@
 import unittest
 
-from analyzer.priority import aggregate_priorities, calculate_priority
-from analyzer.priority import aggregate_priorities, calculate_priority, priority_rows
+from engine.priority import aggregate_priorities, calculate_priority, priority_rows
 
 class TestCalculatePriority(unittest.TestCase):
 

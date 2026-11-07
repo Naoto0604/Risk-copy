@@ -3,7 +3,7 @@ import io
 import json
 import unittest
 
-from analyzer.scoring_v2 import score
+from engine.scoring_v2 import score
 from engine.rule_runner import Finding
 from report import export, model
 

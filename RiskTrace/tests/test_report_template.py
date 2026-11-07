@@ -3,7 +3,7 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from analyzer.scoring_v2 import score
+from engine.scoring_v2 import score
 from engine.rule_runner import Finding
 from report import model
 

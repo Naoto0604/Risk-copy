@@ -8,7 +8,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 import app
-from analyzer.scoring_v2 import score
+from engine.scoring_v2 import score
 from app import _RUNNING
 from database import db as db_module
 from database import report_store

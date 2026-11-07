@@ -3,7 +3,7 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
-from analyzer.scoring_v2 import score
+from engine.scoring_v2 import score
 from database import db as db_module
 from database import report_store
 from database.models import init_db

@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Iterable
 
-from analyzer import priority as priority_module
+from engine import priority as priority_module
 from engine.attack_path import AttackPath
 from engine.rule_runner import SEVERITY_ORDER, Finding
 
