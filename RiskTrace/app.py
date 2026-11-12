@@ -20,9 +20,11 @@ import re
 import secrets
 import threading
 import uuid
+import hmac
 from urllib.parse import urlsplit
 
 from flask import Flask, Response, abort, jsonify, render_template, request,redirect,url_for
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from database import report_store
 from database import queue as queue_module
@@ -41,6 +43,11 @@ from web import auth, csrf, ratelimit
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("RISKTRACE_SECRET") or secrets.token_hex(32)
+_PROXY_TOKEN = os.environ.get("RISKTRACE_PROXY_TOKEN", "")
+if _PROXY_TOKEN:
+    # Trust forwarded host/protocol only when the backend requires the Worker token.
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+    app.config["SESSION_COOKIE_SECURE"] = True
 
 #: 同意画面で選べる Collector。
 COLLECTORS: tuple[str, ...] = tuple(step.name for step in service.plan.DEFAULT_STEPS)
@@ -48,6 +55,15 @@ COLLECTORS: tuple[str, ...] = tuple(step.name for step in service.plan.DEFAULT_S
 #: 実行中スキャン。二重起動の防止に使う。
 _RUNNING: dict[str, threading.Thread] = {}
 _LOCK = threading.Lock()
+
+
+@app.before_request
+def _require_worker_proxy():
+    """If configured, accept requests only from the trusted Cloudflare Worker."""
+    if _PROXY_TOKEN and not hmac.compare_digest(
+        request.headers.get("X-RiskTrace-Proxy-Token", ""), _PROXY_TOKEN
+    ):
+        abort(403)
 
 
 class AlreadyRunning(Exception):
@@ -269,7 +285,21 @@ def report(scan_id: str):
     except KeyError:
         abort(404)
     stored["scan_id"] = scan_id
-    return render_template("report_v2.html", report=stored)
+    evidence_details = {}
+    for item in stored.get("evidence") or ():
+        evidence_id = item.get("evidence_id")
+        if not evidence_id:
+            continue
+        record = store.get(evidence_id)
+        if record is not None:
+            evidence_details[evidence_id] = {
+                "payload": record.payload,
+                "sha256": record.sha256,
+                "verified": record.verify(),
+            }
+    return render_template(
+        "report_v2.html", report=stored, evidence_details=evidence_details
+    )
 
 
 if __name__ == "__main__":

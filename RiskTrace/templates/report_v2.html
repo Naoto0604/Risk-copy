@@ -1,97 +1,200 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
-<meta charset="utf-8">
-<title>診断レポート - {{ report.target }}</title>
-<style>
-  body { font-family: system-ui, sans-serif; line-height: 1.6; margin: 2rem auto; max-width: 60rem; padding: 0 1rem; color: #1a1a1a; }
-  h1 { font-size: 1.4rem; }
-  h2 { font-size: 1.1rem; margin-top: 2rem; border-bottom: 1px solid #ddd; padding-bottom: .3rem; }
-  .note { background: #f4f4f4; border-left: 4px solid #999; padding: .7rem 1rem; }
-  .score { display: flex; gap: 1.5rem; flex-wrap: wrap; }
-  .score div { border: 1px solid #ddd; padding: .5rem 1rem; min-width: 8rem; }
-  .score strong { display: block; font-size: 1.6rem; }
-  .badge { display: inline-block; padding: 0 .45rem; border-radius: .25rem; font-size: .8rem; border: 1px solid #999; }
-  .sev-CRITICAL { background: #fde2e1; }
-  .sev-HIGH { background: #fce8d5; }
-  .sev-MEDIUM { background: #fdf6d8; }
-  .sev-LOW { background: #e7f2e7; }
-  .sev-INFO { background: #eee; }
-  .conf-low { border-style: dashed; }
-  .item { border: 1px solid #ddd; padding: .6rem .9rem; margin: .6rem 0; }
-  .item h3 { font-size: 1rem; margin: 0 0 .3rem; }
-  .muted { color: #666; font-size: .85rem; }
-  table { border-collapse: collapse; width: 100%; font-size: .85rem; }
-  th, td { border: 1px solid #ddd; padding: .3rem .5rem; text-align: left; }
-  details summary { cursor: pointer; }
-  ul { padding-left: 1.2rem; }
-</style>
+  <meta charset="utf-8">
+  <title>診断レポート - {{ report.target }}</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      line-height: 1.6;
+      margin: 2rem auto;
+      max-width: 60rem;
+      padding: 0 1rem;
+      color: #1a1a1a;
+    }
+
+    h1 {
+      font-size: 1.4rem;
+    }
+
+    h2 {
+      font-size: 1.1rem;
+      margin-top: 2rem;
+      border-bottom: 1px solid #ddd;
+      padding-bottom: .3rem;
+    }
+
+    .note {
+      background: #f4f4f4;
+      border-left: 4px solid #999;
+      padding: .7rem 1rem;
+    }
+
+    .score {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .score div {
+      border: 1px solid #ddd;
+      padding: .5rem 1rem;
+      min-width: 8rem;
+    }
+
+    .score strong {
+      display: block;
+      font-size: 1.6rem;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0 .45rem;
+      border-radius: .25rem;
+      font-size: .8rem;
+      border: 1px solid #999;
+    }
+
+    .sev-CRITICAL {
+      background: #fde2e1;
+    }
+
+    .sev-HIGH {
+      background: #fce8d5;
+    }
+
+    .sev-MEDIUM {
+      background: #fdf6d8;
+    }
+
+    .sev-LOW {
+      background: #e7f2e7;
+    }
+
+    .sev-INFO {
+      background: #eee;
+    }
+
+    .conf-low {
+      border-style: dashed;
+    }
+
+    .item {
+      border: 1px solid #ddd;
+      padding: .6rem .9rem;
+      margin: .6rem 0;
+    }
+
+    .item h3 {
+      font-size: 1rem;
+      margin: 0 0 .3rem;
+    }
+
+    .muted {
+      color: #666;
+      font-size: .85rem;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: .85rem;
+    }
+
+    th,
+    td {
+      border: 1px solid #ddd;
+      padding: .3rem .5rem;
+      text-align: left;
+    }
+
+    details summary {
+      cursor: pointer;
+    }
+
+    pre.evidence-payload {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      background: #f6f6f6;
+      border: 1px solid #ddd;
+      padding: .75rem;
+      max-height: 32rem;
+      overflow: auto;
+    }
+
+    ul {
+      padding-left: 1.2rem;
+    }
+  </style>
 </head>
+
 <body>
 
-<h1>{{ report.target }}</h1>
-<p class="muted">生成: {{ report.generated_at }}</p>
-<p class="muted">
-  <a href="/v2/report/{{ report.scan_id or '' }}/json">JSON</a> /
-  <a href="/v2/report/{{ report.scan_id or '' }}/csv">CSV</a>
-</p>
+  <h1>{{ report.target }}</h1>
+  <p class="muted">生成: {{ report.generated_at }}</p>
+  <p class="muted">
+    <a href="/v2/report/{{ report.scan_id or '' }}/json">JSON</a> /
+    <a href="/v2/report/{{ report.scan_id or '' }}/csv">CSV</a>
+  </p>
 
 
-<p class="note">{{ report.status_note }}</p>
+  <p class="note">{{ report.status_note }}</p>
 
-<h2>診断概要</h2>
-<div class="score">
-  <div><strong class="sev-{{ report.level }}">{{ report.overall }}</strong>総合 {{ report.level }}</div>
-  {% for axis, value in report.axes.items() %}
-  <div><strong>{{ value }}</strong>{{ axis }}</div>
-  {% endfor %}
-  <div>
-    <strong>{% if report.coverage is none %}不明{% else %}{{ (report.coverage * 100) | round | int }}%{% endif %}</strong>
-    被覆率
+  <h2>診断概要</h2>
+  <div class="score">
+    <div><strong class="sev-{{ report.level }}">{{ report.overall }}</strong>総合 {{ report.level }}</div>
+    {% for axis, value in report.axes.items() %}
+    <div><strong>{{ value }}</strong>{{ axis }}</div>
+    {% endfor %}
+    <div>
+      <strong>{% if report.coverage is none %}不明{% else %}{{ (report.coverage * 100) | round | int }}%{% endif
+        %}</strong>
+      被覆率
+    </div>
   </div>
-</div>
-<p class="muted">
-  スコアは要約であり、脆弱性の断定ではありません。
-  被覆率が低いほどスコアは参考値になります。
-  {% if report.excluded_low_confidence %}
-  確度の低い {{ report.excluded_low_confidence }} 件は総合に含めていません。
+  <p class="muted">
+    スコアは要約であり、脆弱性の断定ではありません。
+    被覆率が低いほどスコアは参考値になります。
+    {% if report.excluded_low_confidence %}
+    確度の低い {{ report.excluded_low_confidence }} 件は総合に含めていません。
+    {% endif %}
+  </p>
+
+  <h2>次にやること</h2>
+  {% if report.actions %}
+  <ul>
+    {% for action in report.actions %}
+    <li>
+      <span class="badge sev-{{ action.severity }}">{{ action.severity }}</span>
+      {{ action.title }}
+      <div class="muted">{{ action.reason }} / rule: {{ action.rule_id }}</div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">該当なし。ただし 0 件は安全を意味しません。</p>
   {% endif %}
-</p>
-
-<h2>次にやること</h2>
-{% if report.actions %}
-<ul>
-  {% for action in report.actions %}
-  <li>
-    <span class="badge sev-{{ action.severity }}">{{ action.severity }}</span>
-    {{ action.title }}
-    <div class="muted">{{ action.reason }} / rule: {{ action.rule_id }}</div>
-  </li>
-  {% endfor %}
-</ul>
-{% else %}
-<p class="muted">該当なし。ただし 0 件は安全を意味しません。</p>
-{% endif %}
-{% if report.paths %}
-<h2>想定される攻撃経路</h2>
-<ul>
-  {% for path in report.paths %}
-  <li>
-    <span class="badge sev-{{ path.severity }}">{{ path.severity }}</span>
-    {{ path.title }}
-    <div class="muted">{{ path.subject }}</div>
-    <ol class="muted">
-      {% for step in path.steps %}<li>{{ step }}</li>{% endfor %}
-    </ol>
-    <div class="muted">{{ path.description }}</div>
-  </li>
-  {% endfor %}
-</ul>
-{% endif %}
+  {% if report.paths %}
+  <h2>想定される攻撃経路</h2>
+  <ul>
+    {% for path in report.paths %}
+    <li>
+      <span class="badge sev-{{ path.severity }}">{{ path.severity }}</span>
+      {{ path.title }}
+      <div class="muted">{{ path.subject }}</div>
+      <ol class="muted">
+        {% for step in path.steps %}<li>{{ step }}</li>{% endfor %}
+      </ol>
+      <div class="muted">{{ path.description }}</div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
 
 
-<h2>主要な所見</h2>
-{% if report.groups %}
+  <h2>主要な所見</h2>
+  {% if report.groups %}
   {% for group in report.groups %}
   <div class="item">
     <h3>
@@ -113,26 +216,36 @@
     </details>
   </div>
   {% endfor %}
-{% else %}
-<p class="muted">該当なし。</p>
-{% endif %}
+  {% else %}
+  <p class="muted">該当なし。</p>
+  {% endif %}
 
-<h2>要確認 <span class="badge">{{ report.review_count }}</span></h2>
-{% if report.needs_review %}
-<table>
-  <thead><tr><th>種別</th><th>対象</th><th>内容</th></tr></thead>
-  <tbody>
-    {% for item in report.needs_review %}
-    <tr><td>{{ item.kind }}</td><td>{{ item.label }}</td><td>{{ item.detail }}</td></tr>
-    {% endfor %}
-  </tbody>
-</table>
-{% else %}
-<p class="muted">実行できなかった項目はありません。</p>
-{% endif %}
+  <h2>要確認 <span class="badge">{{ report.review_count }}</span></h2>
+  {% if report.needs_review %}
+  <table>
+    <thead>
+      <tr>
+        <th>種別</th>
+        <th>対象</th>
+        <th>内容</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in report.needs_review %}
+      <tr>
+        <td>{{ item.kind }}</td>
+        <td>{{ item.label }}</td>
+        <td>{{ item.detail }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">実行できなかった項目はありません。</p>
+  {% endif %}
 
-<h2>確度の低い所見</h2>
-{% if report.low_confidence %}
+  <h2>確度の低い所見</h2>
+  {% if report.low_confidence %}
   {% for group in report.low_confidence %}
   <div class="item conf-low">
     <h3>
@@ -150,53 +263,87 @@
     </details>
   </div>
   {% endfor %}
-{% else %}
-<p class="muted">該当なし。</p>
-{% endif %}
+  {% else %}
+  <p class="muted">該当なし。</p>
+  {% endif %}
 
-<h2>Evidence</h2>
-{% if report.evidence %}
-<details>
-  <summary>全 {{ report.evidence | length }} 件を開く</summary>
-  <table>
-    <thead><tr><th>Evidence ID</th><th>Collector</th><th>対象</th><th>状態</th></tr></thead>
-    <tbody>
-      {% for item in report.evidence %}
-      <tr><td>{{ item.evidence_id }}</td><td>{{ item.collector }}</td><td>{{ item.subject }}</td><td>{{ item.status }}</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</details>
-{% else %}
-<p class="muted">Evidence は保存されていません。</p>
-{% endif %}
+  <h2>Evidence</h2>
+  {% if report.evidence %}
+  <details>
+    <summary>全 {{ report.evidence | length }} 件を開く</summary>
+    <table>
+      <thead>
+        <tr>
+          <th>Evidence ID</th>
+          <th>Collector</th>
+          <th>対象</th>
+          <th>状態</th>
+          <th>保存された観測内容</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in report.evidence %}
+        <tr>
+          <td>{{ item.evidence_id }}</td>
+          <td>{{ item.collector }}</td>
+          <td>{{ item.subject }}</td>
+          <td>{{ item.status }}</td>
+          <td>
+            {% set detail = evidence_details.get(item.evidence_id) %}
+            {% if detail %}
+            <details>
+              <summary>内容を表示</summary>
+              <pre class="evidence-payload">{{ detail.payload | tojson(indent=2) }}</pre>
+              <p class="muted">SHA-256: {{ detail.sha256 }} / 完全性: {{ "一致" if detail.verified else "不一致" }}</p>
+            </details>
+            {% else %}
+            <span class="muted">保存内容がありません（期限切れまたは削除済み）</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </details>
+  {% else %}
+  <p class="muted">Evidence は保存されていません。</p>
+  {% endif %}
 
-<h2>前回との比較</h2>
-{% if report.previous %}
-<p>
-  前回: {{ report.previous.overall }} / {{ report.previous.level }}
-  （差: {{ report.overall - report.previous.overall }}）
-</p>
-{% else %}
-<p class="muted">前回の診断がありません。</p>
-{% endif %}
+  <h2>前回との比較</h2>
+  {% if report.previous %}
+  <p>
+    前回: {{ report.previous.overall }} / {{ report.previous.level }}
+    （差: {{ report.overall - report.previous.overall }}）
+  </p>
+  {% else %}
+  <p class="muted">前回の診断がありません。</p>
+  {% endif %}
 
-<h2>診断ログ</h2>
-{% if report.log %}
-<details>
-  <summary>全 {{ report.log | length }} 件を開く</summary>
-  <table>
-    <thead><tr><th>event</th><th>詳細</th></tr></thead>
-    <tbody>
-      {% for entry in report.log %}
-      <tr><td>{{ entry.get("event") }}</td><td>{{ entry }}</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</details>
-{% else %}
-<p class="muted">ログはありません。</p>
-{% endif %}
+  <h2>診断ログ</h2>
+  {% if report.log %}
+  <details>
+    <summary>全 {{ report.log | length }} 件を開く</summary>
+    <table>
+      <thead>
+        <tr>
+          <th>event</th>
+          <th>詳細</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in report.log %}
+        <tr>
+          <td>{{ entry.get("event") }}</td>
+          <td>{{ entry }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </details>
+  {% else %}
+  <p class="muted">ログはありません。</p>
+  {% endif %}
 
 </body>
+
 </html>

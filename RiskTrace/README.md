@@ -48,6 +48,10 @@ docs/                      設計メモ・履歴・旧ドキュメント
 - Python 3.12
 - SQLite（WAL）
 
+## Cloudflare Workers から公開する
+
+既存のスキャナーを維持する場合は、[cloudflare/README.md](cloudflare/README.md) の固定オリジン Gateway 構成を使う。Workers は公開入口、Flask と SQLite は永続バックエンドとして動かす。
+
 ## セットアップ
 
 ```powershell

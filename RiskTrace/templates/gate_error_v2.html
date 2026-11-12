@@ -1,25 +1,40 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="utf-8">
-<title>診断を開始できません</title>
-<style>
-  body { font-family: system-ui, sans-serif; margin: 2rem auto; max-width: 40rem; padding: 0 1rem; }
-  .box { background: #fdf6d8; border-left: 4px solid #c9a227; padding: .8rem 1rem; }
-  li { margin: .3rem 0; }
-</style>
+  <meta charset="utf-8">
+  <title>診断を開始できません</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 2rem auto;
+      max-width: 40rem;
+      padding: 0 1rem;
+    }
+
+    .box {
+      background: #fdf6d8;
+      border-left: 4px solid #c9a227;
+      padding: .8rem 1rem;
+    }
+
+    li {
+      margin: .3rem 0;
+    }
+  </style>
 </head>
+
 <body>
-<h1>診断を開始できません</h1>
-<p>対象: {{ target }}</p>
+  <h1>診断を開始できません</h1>
+  <p>対象: {{ target }}</p>
 
-<div class="box">
-  <p>次の理由で拒否しました。</p>
-  <ul>
-    {% for reason in reasons %}<li>{{ reason }}</li>{% endfor %}
-  </ul>
-</div>
+  <div class="box">
+    <p>次の理由で拒否しました。</p>
+    <ul>
+      {% for reason in reasons %}<li>{{ reason }}</li>{% endfor %}
+    </ul>
+  </div>
 
-<p><a href="/v2/">戻る</a></p>
+  <p><a href="/v2/">戻る</a></p>
 </body>
+
 </html>
