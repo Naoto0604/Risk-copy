@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "risktrace-gateway",
+  "name": "risk-copy",
   "main": "src/index.ts",
   "compatibility_date": "2026-11-12",
   "workers_dev": true,
